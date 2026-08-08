@@ -10,8 +10,10 @@ const viteImportMeta = import.meta as ImportMeta & {
 const supabaseUrl = viteImportMeta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = viteImportMeta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing Supabase environment variables.");
-}
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Keep the Console alive while Supportable is being configured.
+// The actual client is created only when both public Supabase values exist.
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  : null;
