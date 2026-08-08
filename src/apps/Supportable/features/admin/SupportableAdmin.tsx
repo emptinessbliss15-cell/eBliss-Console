@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, type DataColumn } from "../../../../components/DataTable";
 import { fetchCapabilities, fetchParticipantRoles, fetchParticipantTypes, fetchParticipants, fetchRoleCapabilities, fetchRoles, saveCapability, saveParticipant, saveParticipantRoles, saveParticipantType, saveRole, saveRoleCapabilities, deleteParticipantType, deleteRecord, type LookupOption } from "../../lib/supportableData";
+import { AgentFunctions } from "./AgentFunctions";
 
 type RecordRow = { id: string; name: string; description?: string; status?: string; participant_type_id?: string; archived_at?: string | null; archived_by?: string | null; archive_reason?: string | null };
-type Entity = "roles" | "capabilities" | "participants" | "participant_types";
+type Entity = "roles" | "capabilities" | "participants" | "participant_types" | "agent_functions";
 type NewRecord = { name: string; description: string; status: string; participant_type_id: string; archive_reason: string };
 const statusOptions = ["active", "draft", "inactive"].map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
 
 export function SupportableAdmin() {
   const [entity, setEntity] = useState<Entity>("roles");
-  const [records, setRecords] = useState<Record<Entity, RecordRow[]>>({ roles: [], capabilities: [], participants: [], participant_types: [] });
+  const [records, setRecords] = useState<Record<Entity, RecordRow[]>>({ roles: [], capabilities: [], participants: [], participant_types: [], agent_functions: [] });
   const [participantTypes, setParticipantTypes] = useState<LookupOption[]>([]);
   const [roles, setRoles] = useState<LookupOption[]>([]);
   const [capabilities, setCapabilities] = useState<LookupOption[]>([]);
@@ -35,6 +36,7 @@ export function SupportableAdmin() {
         capabilities: capabilityRows.map((row) => ({ id: row.id, name: row.name })),
         participants: participantRows.map((row) => ({ id: row.id, name: row.name, description: row.description, status: row.status, participant_type_id: row.participant_type_id, archived_at: row.archived_at, archived_by: row.archived_by, archive_reason: row.archive_reason })),
         participant_types: types.map((row) => ({ id: row.value, name: row.label })),
+        agent_functions: [],
       });
       setParticipantTypes(types);
       const rolePairs = await Promise.all(participantRows.map(async (participant) => [participant.id, await fetchParticipantRoles(participant.id)] as const));
@@ -52,14 +54,15 @@ export function SupportableAdmin() {
   useEffect(() => { load(); }, []);
 
   const rows = records[entity];
-  const entityLabel = entity === "participant_types" ? "Participant Types" : entity.charAt(0).toUpperCase() + entity.slice(1);
-  const singularLabel = entity === "participant_types" ? "Participant Type" : entityLabel.endsWith("s") ? entityLabel.slice(0, -1) : entityLabel;
-  const countLabel = useMemo(() => `${rows.length} ${entity === "participant_types" ? "participant types" : entity}`, [rows.length, entity]);
+  const entityLabel = entity === "participant_types" ? "Participant Types" : entity === "agent_functions" ? "Agent Functions" : entity.charAt(0).toUpperCase() + entity.slice(1);
+  const singularLabel = entity === "participant_types" ? "Participant Type" : entity === "agent_functions" ? "Agent Function" : entityLabel.endsWith("s") ? entityLabel.slice(0, -1) : entityLabel;
+  const countLabel = useMemo(() => `${rows.length} ${entity === "participant_types" ? "participant types" : entity === "agent_functions" ? "agent functions" : entity}`, [rows.length, entity]);
   const columns: Record<Entity, DataColumn<RecordRow>[]> = {
     roles: [{ key: "name", label: "Name" }, { key: "status", label: "Status", editor: "lookup", options: statusOptions }],
     capabilities: [{ key: "name", label: "Name" }],
     participants: [],
     participant_types: [{ key: "name", label: "Name" }],
+    agent_functions: [],
   };
 
   async function updateRow(row: RecordRow) {
@@ -104,12 +107,14 @@ export function SupportableAdmin() {
   async function openCapabilityEditor(role: RecordRow) { setError(""); setLoadingRelationship(true); try { setCapabilityEditor({ role, selected: await fetchRoleCapabilities(role.id) }); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load role capabilities"); } finally { setLoadingRelationship(false); } }
   function toggleCapability(capabilityId: string) { setCapabilityEditor((current) => current ? { ...current, selected: current.selected.includes(capabilityId) ? current.selected.filter((id) => id !== capabilityId) : [...current.selected, capabilityId] } : current); }
   async function saveCapabilityEditor() { if (!capabilityEditor) return; setSaving(true); setError(""); try { await saveRoleCapabilities(capabilityEditor.role.id, capabilityEditor.selected); setRoleCapabilityNames((current) => ({ ...current, [capabilityEditor.role.id]: capabilityEditor.selected.map((id) => capabilities.find((capability) => capability.value === id)?.label).filter((name): name is string => Boolean(name)) })); setCapabilityEditor(null); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save role capabilities"); } finally { setSaving(false); } }
-  async function deleteRow(row: RecordRow) { if (!window.confirm(`Delete ${row.name}?`)) return; setSaving(true); setError(""); try { if (entity === "participant_types") await deleteParticipantType(row.id); else await deleteRecord(entity, row.id); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete record"); } finally { setSaving(false); } }
+  async function deleteRow(row: RecordRow) { if (!window.confirm(`Delete ${row.name}?`)) return; setSaving(true); setError(""); try { if (entity === "participant_types") await deleteParticipantType(row.id); else await deleteRecord(entity as "roles" | "capabilities" | "participants", row.id); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete record"); } finally { setSaving(false); } }
   function changeEntity(key: Entity) { setEntity(key); setNewRecord(null); setRoleEditor(null); setCapabilityEditor(null); setError(""); }
+
+  if (entity === "agent_functions") return <AgentFunctions />;
 
   return <section className="supportable-admin">
     <div className="admin-heading"><div><div className="app-kicker">Manage</div><h2>Supportable data</h2><p>Live Supabase data with human-readable names.</p></div><div className="admin-heading-actions"><button className="secondary-button" type="button" onClick={load} disabled={loading || saving}>↻ Refresh</button><button className="primary-button" type="button" onClick={startAdd} disabled={saving || newRecord !== null}>+ New {singularLabel}</button></div></div>
-    <nav className="admin-tabs" aria-label="Supportable data types">{(["roles", "capabilities", "participants", "participant_types"] as Entity[]).map((key) => <button key={key} className={entity === key ? "active" : ""} type="button" onClick={() => changeEntity(key)}>{key === "participant_types" ? "participant types" : key}</button>)}</nav>
+    <nav className="admin-tabs" aria-label="Supportable data types">{(["roles", "capabilities", "participants", "participant_types", "agent_functions"] as Entity[]).map((key) => <button key={key} className={entity === key ? "active" : ""} type="button" onClick={() => changeEntity(key)}>{key === "participant_types" ? "participant types" : key === "agent_functions" ? "agent functions" : key}</button>)}</nav>
     {error && <div className="role-error" role="alert">{error}</div>}
     {!loading && newRecord && <div className="admin-create-row"><div className="admin-create-field"><label htmlFor="new-record-name">Name</label><input id="new-record-name" autoFocus value={newRecord.name} onChange={(event) => setNewRecord((current) => current ? { ...current, name: event.target.value } : current)} /></div>{entity === "participants" && <><div className="admin-create-field"><label htmlFor="new-participant-description">Description</label><input id="new-participant-description" value={newRecord.description} onChange={(event) => setNewRecord((current) => current ? { ...current, description: event.target.value } : current)} /></div><div className="admin-create-field"><label htmlFor="new-participant-type">Participant Type</label><select id="new-participant-type" value={newRecord.participant_type_id} onChange={(event) => setNewRecord((current) => current ? { ...current, participant_type_id: event.target.value } : current)}><option value="">Select type…</option>{participantTypes.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div></>}{entity !== "capabilities" && entity !== "participant_types" && <div className="admin-create-field"><label htmlFor="new-record-status">Status</label><select id="new-record-status" value={newRecord.status} onChange={(event) => setNewRecord((current) => current ? { ...current, status: event.target.value } : current)}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>}{entity === "participants" && <div className="admin-create-field"><label htmlFor="new-participant-archive-reason">Archive Reason</label><input id="new-participant-archive-reason" value={newRecord.archive_reason} onChange={(event) => setNewRecord((current) => current ? { ...current, archive_reason: event.target.value } : current)} /></div>}<div className="admin-create-actions"><button className="primary-button" type="button" onClick={saveNewRecord} disabled={saving}>Save</button><button className="secondary-button" type="button" onClick={cancelAdd} disabled={saving}>Cancel</button></div></div>}
     <div className="admin-summary">{loading ? "Loading..." : countLabel}{saving ? " · Saving..." : ""}</div>
