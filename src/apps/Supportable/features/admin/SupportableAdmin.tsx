@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, type DataColumn } from "../../../../components/DataTable";
-import { fetchCapabilities, fetchParticipantTypes, fetchParticipants, fetchRoles, saveCapability, saveParticipant, saveRole, deleteRecord, type LookupOption } from "../../lib/supportableData";
+import { fetchCapabilities, fetchParticipantTypes, fetchParticipants, fetchRoles, saveCapability, saveParticipant, saveParticipantType, saveRole, deleteParticipantType, deleteRecord, type LookupOption } from "../../lib/supportableData";
 
 type RecordRow = { id: string; name: string; description?: string; status?: string; participant_type_id?: string; archived_at?: string | null; archived_by?: string | null; archive_reason?: string | null };
-type Entity = "roles" | "capabilities" | "participants";
+type Entity = "roles" | "capabilities" | "participants" | "participant_types";
 type NewRecord = { name: string; description: string; status: string; participant_type_id: string; archive_reason: string };
 const statusOptions = ["active", "draft", "inactive"].map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
 
 export function SupportableAdmin() {
   const [entity, setEntity] = useState<Entity>("roles");
-  const [records, setRecords] = useState<Record<Entity, RecordRow[]>>({ roles: [], capabilities: [], participants: [] });
+  const [records, setRecords] = useState<Record<Entity, RecordRow[]>>({ roles: [], capabilities: [], participants: [], participant_types: [] });
   const [participantTypes, setParticipantTypes] = useState<LookupOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -24,6 +24,7 @@ export function SupportableAdmin() {
         roles: roles.map((row) => ({ id: row.id, name: row.name, status: row.status })),
         capabilities: capabilities.map((row) => ({ id: row.id, name: row.name })),
         participants: participants.map((row) => ({ id: row.id, name: row.name, description: row.description, status: row.status, participant_type_id: row.participant_type_id, archived_at: row.archived_at, archived_by: row.archived_by, archive_reason: row.archive_reason })),
+        participant_types: types.map((row) => ({ id: row.value, name: row.label })),
       });
       setParticipantTypes(types);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load Supportable data"); }
@@ -33,9 +34,9 @@ export function SupportableAdmin() {
   useEffect(() => { load(); }, []);
 
   const rows = records[entity];
-  const entityLabel = entity.charAt(0).toUpperCase() + entity.slice(1);
-  const singularLabel = entityLabel.endsWith("s") ? entityLabel.slice(0, -1) : entityLabel;
-  const countLabel = useMemo(() => `${rows.length} ${entity}`, [rows.length, entity]);
+  const entityLabel = entity === "participant_types" ? "Participant Types" : entity.charAt(0).toUpperCase() + entity.slice(1);
+  const singularLabel = entity === "participant_types" ? "Participant Type" : entityLabel.endsWith("s") ? entityLabel.slice(0, -1) : entityLabel;
+  const countLabel = useMemo(() => `${rows.length} ${entity === "participant_types" ? "participant types" : entity}`, [rows.length, entity]);
   const columns: Record<Entity, DataColumn<RecordRow>[]> = {
     roles: [{ key: "name", label: "Name" }, { key: "status", label: "Status", editor: "lookup", options: statusOptions }],
     capabilities: [{ key: "name", label: "Name" }],
@@ -46,6 +47,7 @@ export function SupportableAdmin() {
       { key: "participant_type_id", label: "Participant Type", editor: "lookup", options: participantTypes },
       { key: "archive_reason", label: "Archive Reason" },
     ],
+    participant_types: [{ key: "name", label: "Name" }],
   };
 
   async function updateRow(row: RecordRow) {
@@ -55,6 +57,7 @@ export function SupportableAdmin() {
       if (entity === "roles") await saveRole(row.id, row.name, row.status ?? "active");
       if (entity === "capabilities") await saveCapability(row.id, row.name);
       if (entity === "participants") await saveParticipant(row.id, row.name, row.status ?? "active", row.participant_type_id ?? "", row.description, row.archive_reason);
+      if (entity === "participant_types") await saveParticipantType(row.id, row.name);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save record"); await load(); }
     finally { setSaving(false); }
   }
@@ -80,6 +83,7 @@ export function SupportableAdmin() {
       if (entity === "roles") await saveRole(null, newRecord.name, newRecord.status);
       if (entity === "capabilities") await saveCapability(null, newRecord.name);
       if (entity === "participants") await saveParticipant(null, newRecord.name, newRecord.status, newRecord.participant_type_id, newRecord.description, newRecord.archive_reason);
+      if (entity === "participant_types") await saveParticipantType(null, newRecord.name);
       setNewRecord(null); await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create record"); }
     finally { setSaving(false); }
@@ -88,15 +92,18 @@ export function SupportableAdmin() {
   async function deleteRow(row: RecordRow) {
     if (!window.confirm(`Delete ${row.name}?`)) return;
     setSaving(true); setError("");
-    try { await deleteRecord(entity, row.id); await load(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete record"); }
+    try {
+      if (entity === "participant_types") await deleteParticipantType(row.id);
+      else await deleteRecord(entity, row.id);
+      await load();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete record"); }
     finally { setSaving(false); }
   }
   function changeEntity(key: Entity) { setEntity(key); setNewRecord(null); setError(""); }
 
   return <section className="supportable-admin">
     <div className="admin-heading"><div><div className="app-kicker">Manage</div><h2>Supportable data</h2><p>Live Supabase data with human-readable names.</p></div><button className="primary-button" type="button" onClick={startAdd} disabled={saving || newRecord !== null}>+ New {singularLabel}</button></div>
-    <nav className="admin-tabs" aria-label="Supportable data types">{(["roles", "capabilities", "participants"] as Entity[]).map((key) => <button key={key} className={entity === key ? "active" : ""} type="button" onClick={() => changeEntity(key)}>{key}</button>)}</nav>
+    <nav className="admin-tabs" aria-label="Supportable data types">{(["roles", "capabilities", "participants", "participant_types"] as Entity[]).map((key) => <button key={key} className={entity === key ? "active" : ""} type="button" onClick={() => changeEntity(key)}>{key === "participant_types" ? "participant types" : key}</button>)}</nav>
     {error && <div className="role-error" role="alert">{error}</div>}
     {!loading && newRecord && <div className="admin-create-row">
       <div className="admin-create-field"><label htmlFor="new-record-name">Name</label><input id="new-record-name" autoFocus value={newRecord.name} onChange={(event) => setNewRecord((current) => current ? { ...current, name: event.target.value } : current)} /></div>
@@ -104,12 +111,12 @@ export function SupportableAdmin() {
         <div className="admin-create-field"><label htmlFor="new-participant-description">Description</label><input id="new-participant-description" value={newRecord.description} onChange={(event) => setNewRecord((current) => current ? { ...current, description: event.target.value } : current)} /></div>
         <div className="admin-create-field"><label htmlFor="new-participant-type">Participant Type</label><select id="new-participant-type" value={newRecord.participant_type_id} onChange={(event) => setNewRecord((current) => current ? { ...current, participant_type_id: event.target.value } : current)}><option value="">Select type…</option>{participantTypes.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
       </>}
-      {entity !== "capabilities" && <div className="admin-create-field"><label htmlFor="new-record-status">Status</label><select id="new-record-status" value={newRecord.status} onChange={(event) => setNewRecord((current) => current ? { ...current, status: event.target.value } : current)}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>}
+      {entity !== "capabilities" && entity !== "participant_types" && <div className="admin-create-field"><label htmlFor="new-record-status">Status</label><select id="new-record-status" value={newRecord.status} onChange={(event) => setNewRecord((current) => current ? { ...current, status: event.target.value } : current)}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>}
       {entity === "participants" && <div className="admin-create-field"><label htmlFor="new-participant-archive-reason">Archive Reason</label><input id="new-participant-archive-reason" value={newRecord.archive_reason} onChange={(event) => setNewRecord((current) => current ? { ...current, archive_reason: event.target.value } : current)} /></div>}
       <div className="admin-create-actions"><button className="primary-button" type="button" onClick={saveNewRecord} disabled={saving}>Save</button><button className="secondary-button" type="button" onClick={cancelAdd} disabled={saving}>Cancel</button></div>
     </div>}
     <div className="admin-summary">{loading ? "Loading..." : countLabel}{saving ? " · Saving..." : ""}</div>
     {!loading && <DataTable rows={rows} columns={columns[entity]} onChange={updateRow} onDelete={deleteRow} />}
-    <p className="admin-note">Roles, capabilities, and participants are now backed by Supabase. Many-to-many role/capability and participant/role editing is the next layer.</p>
+    <p className="admin-note">Roles, capabilities, participants, and controlled participant types are backed by Supabase. Many-to-many role/capability and participant/role editing is the next layer.</p>
   </section>;
 }
