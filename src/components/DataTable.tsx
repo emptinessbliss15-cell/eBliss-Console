@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LookupSelect } from "./LookupSelect";
 
 export type DataColumn<T> = {
@@ -16,8 +16,9 @@ type DataTableProps<T extends { id: string }> = {
 };
 
 function EditableText<T extends { id: string }>({ row, column, onChange }: { row: T; column: DataColumn<T>; onChange: (value: string) => void }) {
-  const [value, setValue] = useState(String(row[column.key] ?? ""));
-  if (value !== String(row[column.key] ?? "") && document.activeElement?.tagName !== "INPUT") setValue(String(row[column.key] ?? ""));
+  const sourceValue = String(row[column.key] ?? "");
+  const [value, setValue] = useState(sourceValue);
+  useEffect(() => setValue(sourceValue), [sourceValue]);
   return <input value={value} onChange={(event) => setValue(event.target.value)} onBlur={() => onChange(value)} />;
 }
 
