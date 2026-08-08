@@ -49,24 +49,26 @@ export default function App() {
 
         <div className="brand">eBliss</div>
 
-        <div className="header-actions">
-          <label className="theme-picker">
-            <span className="sr-only">Theme</span>
-            <select value={theme} onChange={(event) => setTheme(event.target.value as ThemeName)}>
-              {Object.entries(themes).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-            <ChevronDown size={15} />
-          </label>
-          <button className="login-button" onClick={() => { setLoginError(''); setLoginOpen(true) }}>
-            <LogIn size={17} />
-            <span>{authenticated ? 'Logged in' : 'Login'}</span>
-          </button>
-        </div>
+        {authenticated && (
+          <div className="header-actions">
+            <label className="theme-picker">
+              <span className="sr-only">Theme</span>
+              <select value={theme} onChange={(event) => setTheme(event.target.value as ThemeName)}>
+                {Object.entries(themes).map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+              <ChevronDown size={15} />
+            </label>
+            <button className="login-button" onClick={() => { setLoginError(''); setLoginOpen(true) }}>
+              <LogIn size={17} />
+              <span>Logged in</span>
+            </button>
+          </div>
+        )}
       </header>
 
-      {menuOpen && (
+      {authenticated && menuOpen && (
         <aside className="app-menu">
           <div className="menu-title">Apps</div>
           <button
@@ -80,7 +82,19 @@ export default function App() {
       )}
 
       <main className="app-container">
-        {activeApp === 'Supportable' && <Supportable />}
+        {!authenticated ? (
+          <section className="welcome-view">
+            <div className="app-kicker">eBliss Console</div>
+            <h1>Welcome.</h1>
+            <p className="app-lead">Sign in to begin.</p>
+            <button className="primary-button welcome-login" onClick={() => setLoginOpen(true)}>
+              <LogIn size={17} />
+              Login
+            </button>
+          </section>
+        ) : (
+          activeApp === 'Supportable' && <Supportable />
+        )}
       </main>
 
       {loginOpen && (
