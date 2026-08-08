@@ -1,23 +1,13 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useAgent } from "agents/react";
 import { useAgentChat } from "@cloudflare/ai-chat/react";
 
 const agentHost = (import.meta.env.VITE_AGENT_URL as string | undefined)?.replace(/\/$/, "");
-const agentToken = import.meta.env.VITE_AGENT_TOKEN as string | undefined;
 
 type AgentPanelProps = { enabled?: boolean };
 
 export function AgentPanel({ enabled = Boolean(agentHost) }: AgentPanelProps) {
-  const agent = useAgent({
-    agent: "ConsoleAgent",
-    name: "console",
-    ...(agentHost ? { host: agentHost } : {}),
-    ...(agentToken ? { query: { token: agentToken } } : {}),
-  });
-  const { messages, sendMessage, status } = useAgentChat({ agent });
-  const [input, setInput] = useState("");
-
-  if (!enabled) {
+  if (!enabled || !agentHost) {
     return (
       <section className="supportable-admin">
         <div className="admin-heading">
@@ -31,7 +21,15 @@ export function AgentPanel({ enabled = Boolean(agentHost) }: AgentPanelProps) {
     );
   }
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  return <ConnectedAgentPanel host={agentHost} />;
+}
+
+function ConnectedAgentPanel({ host }: { host: string }) {
+  const agent = useAgent({ agent: "ConsoleAgent", name: "console", host });
+  const { messages, sendMessage, status } = useAgentChat({ agent });
+  const [input, setInput] = useState("");
+
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const text = input.trim();
     if (!text || status !== "ready") return;
