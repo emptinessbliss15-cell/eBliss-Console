@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
-import { DataTable, type DataColumn } from "../../../components/DataTable";
+import { DataTable, type DataColumn } from "../../../../components/DataTable";
 
-type RecordRow = { id: string; name: string; status: string; role?: string; capability?: string };
+type RecordRow = { id: string; name: string; status: string; role?: string };
 
-const roleOptions = ["Helper", "Requester", "Owner", "Agent"].sort().map((name) => ({ value: name, label: name }));
-const capabilityOptions = ["Communication", "Troubleshooting", "Screen Sharing", "Research"].sort().map((name) => ({ value: name, label: name }));
-const statusOptions = ["Active", "Draft", "Inactive"].sort().map((name) => ({ value: name, label: name }));
+const roleOptions = ["Agent", "Helper", "Owner", "Requester"].map((name) => ({ value: name, label: name }));
+const statusOptions = ["Active", "Draft", "Inactive"].map((name) => ({ value: name, label: name }));
 
 const columns: Record<string, DataColumn<RecordRow>[]> = {
   roles: [
@@ -44,6 +43,7 @@ export function SupportableAdmin() {
   const [records, setRecords] = useState(initial);
   const rows = records[entity];
   const entityLabel = entity.charAt(0).toUpperCase() + entity.slice(1);
+  const singularLabel = entityLabel.endsWith("s") ? entityLabel.slice(0, -1) : entityLabel;
   const countLabel = useMemo(() => `${rows.length} ${entity}`, [rows.length, entity]);
 
   function updateRow(row: RecordRow) {
@@ -51,7 +51,7 @@ export function SupportableAdmin() {
   }
 
   function addRow() {
-    setRecords((current) => ({ ...current, [entity]: [...current[entity], { id: crypto.randomUUID(), name: `New ${entityLabel}`, status: "Draft", ...(entity === "participants" ? { role: "Requester" } : {}) }] }));
+    setRecords((current) => ({ ...current, [entity]: [...current[entity], { id: crypto.randomUUID(), name: `New ${singularLabel}`, status: "Draft", ...(entity === "participants" ? { role: "Requester" } : {}) }] }));
   }
 
   function deleteRow(row: RecordRow) {
@@ -59,7 +59,7 @@ export function SupportableAdmin() {
   }
 
   return <section className="supportable-admin">
-    <div className="admin-heading"><div><div className="app-kicker">Manage</div><h2>Supportable data</h2><p>Reusable CRUD tables with relationship fields displayed by name.</p></div><button className="primary-button" type="button" onClick={addRow}>+ New {entityLabel.slice(0, -1) || entityLabel}</button></div>
+    <div className="admin-heading"><div><div className="app-kicker">Manage</div><h2>Supportable data</h2><p>Reusable CRUD tables with relationship fields displayed by name.</p></div><button className="primary-button" type="button" onClick={addRow}>+ New {singularLabel}</button></div>
     <nav className="admin-tabs" aria-label="Supportable data types">{Object.keys(initial).map((key) => <button key={key} className={entity === key ? "active" : ""} type="button" onClick={() => setEntity(key as keyof typeof initial)}>{key}</button>)}</nav>
     <div className="admin-summary">{countLabel}</div>
     <DataTable rows={rows} columns={columns[entity]} onChange={updateRow} onDelete={deleteRow} />
