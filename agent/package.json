@@ -1,0 +1,23 @@
+{
+  "name": "ebliss-console-agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cloudflare/ai-chat": "latest",
+    "@cloudflare/codemode": "latest",
+    "agents": "latest",
+    "ai": "^7.0.0",
+    "workers-ai-provider": "latest",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "typescript": "latest",
+    "wrangler": "latest"
+  }
+}
