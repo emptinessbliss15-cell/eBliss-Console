@@ -4,6 +4,7 @@ import { isSupabaseConfigured, supabase } from "./Supportable/lib/supabase";
 import { Login } from "./Supportable/features/auth/Login";
 import { ParticipantSelector } from "../components/ParticipantSelector";
 import { RoleSelector } from "../components/RoleSelector";
+import { ResponseComposer } from "./Supportable/features/responses/ResponseComposer";
 
 type Participant = { id: string; name: string };
 type RoleContext = { current: string; available: string[] };
@@ -94,5 +95,6 @@ export default function SupportableView() {
       <span className="identity-separator">·</span><RoleSelector currentRole={currentRole} roles={roleContext?.available ?? [currentRole]} onChange={setCurrentRole} />
     </div>{roleError && <div className="role-error" role="status">{roleError}</div>}</div><button type="button" onClick={signOut}>Sign out</button></header>
     <section className="supportable-intent"><h2>What are you trying to accomplish?</h2><textarea value={intent} onChange={(event) => setIntent(event.target.value)} placeholder="Describe your intent..." /><button type="button" disabled title="Intent processing is not implemented yet">Continue</button></section>
+    <ResponseComposer />
   </section>;
 }
