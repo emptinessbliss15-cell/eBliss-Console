@@ -70,6 +70,22 @@ export async function saveParticipantRoles(participantId: string, roleIds: strin
   if (insertError) throw insertError;
 }
 
+export async function fetchRoleCapabilities(roleId: string): Promise<string[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("role_capabilities").select("capability_id").eq("role_id", roleId);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.capability_id);
+}
+
+export async function saveRoleCapabilities(roleId: string, capabilityIds: string[]) {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error: deleteError } = await supabase.from("role_capabilities").delete().eq("role_id", roleId);
+  if (deleteError) throw deleteError;
+  if (!capabilityIds.length) return;
+  const { error: insertError } = await supabase.from("role_capabilities").insert(capabilityIds.map((capabilityId) => ({ role_id: roleId, capability_id: capabilityId })));
+  if (insertError) throw insertError;
+}
+
 export async function saveRole(id: string | null, name: string, status: string) {
   if (!supabase) throw new Error("Supabase is not configured");
   const payload = { name: name.trim(), status: status.toLowerCase() };
