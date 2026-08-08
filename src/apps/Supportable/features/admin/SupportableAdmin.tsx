@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, type DataColumn } from "../../../../components/DataTable";
-import { fetchCapabilities, fetchParticipantRoles, fetchParticipantTypes, fetchParticipants, fetchRoles, saveCapability, saveParticipant, saveParticipantRoles, saveParticipantType, saveRole, deleteParticipantType, deleteRecord, type LookupOption } from "../../lib/supportableData";
+import { fetchCapabilities, fetchParticipantRoles, fetchParticipantTypes, fetchParticipants, fetchRoleCapabilities, fetchRoles, saveCapability, saveParticipant, saveParticipantRoles, saveParticipantType, saveRole, saveRoleCapabilities, deleteParticipantType, deleteRecord, type LookupOption } from "../../lib/supportableData";
 
 type RecordRow = { id: string; name: string; description?: string; status?: string; participant_type_id?: string; archived_at?: string | null; archived_by?: string | null; archive_reason?: string | null };
 type Entity = "roles" | "capabilities" | "participants" | "participant_types";
@@ -12,9 +12,12 @@ export function SupportableAdmin() {
   const [records, setRecords] = useState<Record<Entity, RecordRow[]>>({ roles: [], capabilities: [], participants: [], participant_types: [] });
   const [participantTypes, setParticipantTypes] = useState<LookupOption[]>([]);
   const [roles, setRoles] = useState<LookupOption[]>([]);
+  const [capabilities, setCapabilities] = useState<LookupOption[]>([]);
   const [participantRoleNames, setParticipantRoleNames] = useState<Record<string, string[]>>({});
+  const [roleCapabilityNames, setRoleCapabilityNames] = useState<Record<string, string[]>>({});
   const [roleEditor, setRoleEditor] = useState<{ participant: RecordRow; selected: string[] } | null>(null);
-  const [loadingRoles, setLoadingRoles] = useState(false);
+  const [capabilityEditor, setCapabilityEditor] = useState<{ role: RecordRow; selected: string[] } | null>(null);
+  const [loadingRelationship, setLoadingRelationship] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -25,7 +28,8 @@ export function SupportableAdmin() {
     try {
       const [roleRows, capabilityRows, participantRows, types] = await Promise.all([fetchRoles(), fetchCapabilities(), fetchParticipants(), fetchParticipantTypes()]);
       const roleOptions = roleRows.map((row) => ({ value: row.id, label: row.name }));
-      setRoles(roleOptions);
+      const capabilityOptions = capabilityRows.map((row) => ({ value: row.id, label: row.name }));
+      setRoles(roleOptions); setCapabilities(capabilityOptions);
       setRecords({
         roles: roleRows.map((row) => ({ id: row.id, name: row.name, status: row.status })),
         capabilities: capabilityRows.map((row) => ({ id: row.id, name: row.name })),
@@ -37,6 +41,10 @@ export function SupportableAdmin() {
       const roleNames: Record<string, string[]> = {};
       for (const [participantId, roleIds] of rolePairs) roleNames[participantId] = roleIds.map((id) => roleOptions.find((role) => role.value === id)?.label).filter((name): name is string => Boolean(name));
       setParticipantRoleNames(roleNames);
+      const capabilityPairs = await Promise.all(roleRows.map(async (role) => [role.id, await fetchRoleCapabilities(role.id)] as const));
+      const capabilityNames: Record<string, string[]> = {};
+      for (const [roleId, capabilityIds] of capabilityPairs) capabilityNames[roleId] = capabilityIds.map((id) => capabilityOptions.find((capability) => capability.value === id)?.label).filter((name): name is string => Boolean(name));
+      setRoleCapabilityNames(capabilityNames);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load Supportable data"); }
     finally { setLoading(false); }
   }
@@ -94,10 +102,10 @@ export function SupportableAdmin() {
   }
 
   async function openRoleEditor(participant: RecordRow) {
-    setError(""); setLoadingRoles(true);
+    setError(""); setLoadingRelationship(true);
     try { setRoleEditor({ participant, selected: await fetchParticipantRoles(participant.id) }); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load participant roles"); }
-    finally { setLoadingRoles(false); }
+    finally { setLoadingRelationship(false); }
   }
 
   function toggleRole(roleId: string) {
@@ -115,6 +123,28 @@ export function SupportableAdmin() {
     finally { setSaving(false); }
   }
 
+  async function openCapabilityEditor(role: RecordRow) {
+    setError(""); setLoadingRelationship(true);
+    try { setCapabilityEditor({ role, selected: await fetchRoleCapabilities(role.id) }); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load role capabilities"); }
+    finally { setLoadingRelationship(false); }
+  }
+
+  function toggleCapability(capabilityId: string) {
+    setCapabilityEditor((current) => current ? { ...current, selected: current.selected.includes(capabilityId) ? current.selected.filter((id) => id !== capabilityId) : [...current.selected, capabilityId] } : current);
+  }
+
+  async function saveCapabilityEditor() {
+    if (!capabilityEditor) return;
+    setSaving(true); setError("");
+    try {
+      await saveRoleCapabilities(capabilityEditor.role.id, capabilityEditor.selected);
+      setRoleCapabilityNames((current) => ({ ...current, [capabilityEditor.role.id]: capabilityEditor.selected.map((id) => capabilities.find((capability) => capability.value === id)?.label).filter((name): name is string => Boolean(name)) }));
+      setCapabilityEditor(null);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save role capabilities"); }
+    finally { setSaving(false); }
+  }
+
   async function deleteRow(row: RecordRow) {
     if (!window.confirm(`Delete ${row.name}?`)) return;
     setSaving(true); setError("");
@@ -122,7 +152,7 @@ export function SupportableAdmin() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to delete record"); }
     finally { setSaving(false); }
   }
-  function changeEntity(key: Entity) { setEntity(key); setNewRecord(null); setRoleEditor(null); setError(""); }
+  function changeEntity(key: Entity) { setEntity(key); setNewRecord(null); setRoleEditor(null); setCapabilityEditor(null); setError(""); }
 
   return <section className="supportable-admin">
     <div className="admin-heading"><div><div className="app-kicker">Manage</div><h2>Supportable data</h2><p>Live Supabase data with human-readable names.</p></div><button className="primary-button" type="button" onClick={startAdd} disabled={saving || newRecord !== null}>+ New {singularLabel}</button></div>
@@ -136,9 +166,10 @@ export function SupportableAdmin() {
       <div className="admin-create-actions"><button className="primary-button" type="button" onClick={saveNewRecord} disabled={saving}>Save</button><button className="secondary-button" type="button" onClick={cancelAdd} disabled={saving}>Cancel</button></div>
     </div>}
     <div className="admin-summary">{loading ? "Loading..." : countLabel}{saving ? " · Saving..." : ""}</div>
-    {!loading && entity === "participants" ? <div className="data-table-wrap"><div className="data-table-toolbar"><span>{rows.length} participants</span></div><div className="data-table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Description</th><th>Status</th><th>Participant Type</th><th>Roles</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.description ?? ""}</td><td>{row.status ?? ""}</td><td>{participantTypes.find((option) => option.value === row.participant_type_id)?.label ?? ""}</td><td>{participantRoleNames[row.id]?.length ? participantRoleNames[row.id].join(", ") : "—"}</td><td><button className="secondary-button" type="button" onClick={() => openRoleEditor(row)}>Edit Roles</button> <button className="table-delete" type="button" onClick={() => deleteRow(row)}>Delete</button></td></tr>)}</tbody></table></div></div> : !loading && <DataTable rows={rows} columns={columns[entity]} onChange={updateRow} onDelete={deleteRow} />}
-    {loadingRoles && <div className="role-error">Loading participant roles…</div>}
+    {!loading && entity === "participants" ? <div className="data-table-wrap"><div className="data-table-toolbar"><span>{rows.length} participants</span></div><div className="data-table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Description</th><th>Status</th><th>Participant Type</th><th>Roles</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.description ?? ""}</td><td>{row.status ?? ""}</td><td>{participantTypes.find((option) => option.value === row.participant_type_id)?.label ?? ""}</td><td>{participantRoleNames[row.id]?.length ? participantRoleNames[row.id].join(", ") : "—"}</td><td><button className="secondary-button" type="button" onClick={() => openRoleEditor(row)}>Edit Roles</button> <button className="table-delete" type="button" onClick={() => deleteRow(row)}>Delete</button></td></tr>)}</tbody></table></div></div> : !loading && entity === "roles" ? <div className="data-table-wrap"><div className="data-table-toolbar"><span>{rows.length} roles</span></div><div className="data-table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Status</th><th>Capabilities</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.status ?? ""}</td><td>{roleCapabilityNames[row.id]?.length ? roleCapabilityNames[row.id].join(", ") : "—"}</td><td><button className="secondary-button" type="button" onClick={() => openCapabilityEditor(row)}>Edit Capabilities</button> <button className="table-delete" type="button" onClick={() => deleteRow(row)}>Delete</button></td></tr>)}</tbody></table></div></div> : !loading && <DataTable rows={rows} columns={columns[entity]} onChange={updateRow} onDelete={deleteRow} />}
+    {loadingRelationship && <div className="role-error">Loading relationship…</div>}
     {roleEditor && <div className="admin-modal-backdrop" role="presentation"><div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="participant-role-title"><div className="admin-modal-heading"><div><div className="app-kicker">Participant Roles</div><h3 id="participant-role-title">{roleEditor.participant.name}</h3></div><button className="secondary-button" type="button" onClick={() => setRoleEditor(null)} disabled={saving}>Close</button></div><div className="admin-role-list">{roles.length ? roles.map((role) => <label key={role.value} className="admin-role-option"><input type="checkbox" checked={roleEditor.selected.includes(role.value)} onChange={() => toggleRole(role.value)} /> <span>{role.label}</span></label>) : <p>No roles available.</p>}</div><div className="admin-create-actions"><button className="primary-button" type="button" onClick={saveRoleEditor} disabled={saving}>Save Roles</button><button className="secondary-button" type="button" onClick={() => setRoleEditor(null)} disabled={saving}>Cancel</button></div></div></div>}
-    <p className="admin-note">Roles, capabilities, participants, and controlled participant types are backed by Supabase. Participant ↔ Role is now editable and visible as a relationship subtable.</p>
+    {capabilityEditor && <div className="admin-modal-backdrop" role="presentation"><div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="role-capability-title"><div className="admin-modal-heading"><div><div className="app-kicker">Role Capabilities</div><h3 id="role-capability-title">{capabilityEditor.role.name}</h3></div><button className="secondary-button" type="button" onClick={() => setCapabilityEditor(null)} disabled={saving}>Close</button></div><div className="admin-role-list">{capabilities.length ? capabilities.map((capability) => <label key={capability.value} className="admin-role-option"><input type="checkbox" checked={capabilityEditor.selected.includes(capability.value)} onChange={() => toggleCapability(capability.value)} /> <span>{capability.label}</span></label>) : <p>No capabilities available.</p>}</div><div className="admin-create-actions"><button className="primary-button" type="button" onClick={saveCapabilityEditor} disabled={saving}>Save Capabilities</button><button className="secondary-button" type="button" onClick={() => setCapabilityEditor(null)} disabled={saving}>Cancel</button></div></div></div>}
+    <p className="admin-note">Roles, capabilities, participants, and controlled participant types are backed by Supabase. Participant ↔ Role and Role ↔ Capability are editable and visible as relationship subtables.</p>
   </section>;
 }
