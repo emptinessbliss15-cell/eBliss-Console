@@ -73,7 +73,9 @@ h1 { margin: 8px 0 10px; font-size: clamp(36px, 7vw, 62px); line-height: 1; }
 .login-modal form { display: grid; gap: 16px; margin-top: 22px; }
 .login-modal label { display: grid; gap: 7px; font-weight: 600; }
 .login-modal input { width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); }
+.login-error { padding: 10px 12px; border-radius: 8px; background: rgba(239, 68, 68, .12); color: #fca5a5; font-size: 14px; }
 .modal-note { font-size: 12px; margin-bottom: 0; }
+.modal-note code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
