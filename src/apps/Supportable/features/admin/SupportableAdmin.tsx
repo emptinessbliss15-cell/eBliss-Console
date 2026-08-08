@@ -12,6 +12,7 @@ export function SupportableAdmin() {
   const [records, setRecords] = useState<Record<Entity, RecordRow[]>>({ roles: [], capabilities: [], participants: [], participant_types: [] });
   const [participantTypes, setParticipantTypes] = useState<LookupOption[]>([]);
   const [roles, setRoles] = useState<LookupOption[]>([]);
+  const [participantRoleNames, setParticipantRoleNames] = useState<Record<string, string[]>>({});
   const [roleEditor, setRoleEditor] = useState<{ participant: RecordRow; selected: string[] } | null>(null);
   const [loadingRoles, setLoadingRoles] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -23,7 +24,8 @@ export function SupportableAdmin() {
     setLoading(true); setError("");
     try {
       const [roleRows, capabilityRows, participantRows, types] = await Promise.all([fetchRoles(), fetchCapabilities(), fetchParticipants(), fetchParticipantTypes()]);
-      setRoles(roleRows.map((row) => ({ value: row.id, label: row.name })));
+      const roleOptions = roleRows.map((row) => ({ value: row.id, label: row.name }));
+      setRoles(roleOptions);
       setRecords({
         roles: roleRows.map((row) => ({ id: row.id, name: row.name, status: row.status })),
         capabilities: capabilityRows.map((row) => ({ id: row.id, name: row.name })),
@@ -31,6 +33,10 @@ export function SupportableAdmin() {
         participant_types: types.map((row) => ({ id: row.value, name: row.label })),
       });
       setParticipantTypes(types);
+      const rolePairs = await Promise.all(participantRows.map(async (participant) => [participant.id, await fetchParticipantRoles(participant.id)] as const));
+      const roleNames: Record<string, string[]> = {};
+      for (const [participantId, roleIds] of rolePairs) roleNames[participantId] = roleIds.map((id) => roleOptions.find((role) => role.value === id)?.label).filter((name): name is string => Boolean(name));
+      setParticipantRoleNames(roleNames);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to load Supportable data"); }
     finally { setLoading(false); }
   }
@@ -101,8 +107,11 @@ export function SupportableAdmin() {
   async function saveRoleEditor() {
     if (!roleEditor) return;
     setSaving(true); setError("");
-    try { await saveParticipantRoles(roleEditor.participant.id, roleEditor.selected); setRoleEditor(null); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save participant roles"); }
+    try {
+      await saveParticipantRoles(roleEditor.participant.id, roleEditor.selected);
+      setParticipantRoleNames((current) => ({ ...current, [roleEditor.participant.id]: roleEditor.selected.map((id) => roles.find((role) => role.value === id)?.label).filter((name): name is string => Boolean(name)) }));
+      setRoleEditor(null);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save participant roles"); }
     finally { setSaving(false); }
   }
 
@@ -127,9 +136,9 @@ export function SupportableAdmin() {
       <div className="admin-create-actions"><button className="primary-button" type="button" onClick={saveNewRecord} disabled={saving}>Save</button><button className="secondary-button" type="button" onClick={cancelAdd} disabled={saving}>Cancel</button></div>
     </div>}
     <div className="admin-summary">{loading ? "Loading..." : countLabel}{saving ? " · Saving..." : ""}</div>
-    {!loading && entity === "participants" ? <div className="data-table-wrap"><div className="data-table-toolbar"><span>{rows.length} participants</span></div><div className="data-table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Description</th><th>Status</th><th>Participant Type</th><th>Archive Reason</th><th>Roles</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.description ?? ""}</td><td>{row.status ?? ""}</td><td>{participantTypes.find((option) => option.value === row.participant_type_id)?.label ?? ""}</td><td>{row.archive_reason ?? ""}</td><td><button className="secondary-button" type="button" onClick={() => openRoleEditor(row)}>Edit Roles</button></td><td><button className="table-delete" type="button" onClick={() => deleteRow(row)}>Delete</button></td></tr>)}</tbody></table></div></div> : !loading && <DataTable rows={rows} columns={columns[entity]} onChange={updateRow} onDelete={deleteRow} />}
+    {!loading && entity === "participants" ? <div className="data-table-wrap"><div className="data-table-toolbar"><span>{rows.length} participants</span></div><div className="data-table-scroll"><table className="data-table"><thead><tr><th>Name</th><th>Description</th><th>Status</th><th>Participant Type</th><th>Roles</th><th /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.name}</td><td>{row.description ?? ""}</td><td>{row.status ?? ""}</td><td>{participantTypes.find((option) => option.value === row.participant_type_id)?.label ?? ""}</td><td>{participantRoleNames[row.id]?.length ? participantRoleNames[row.id].join(", ") : "—"}</td><td><button className="secondary-button" type="button" onClick={() => openRoleEditor(row)}>Edit Roles</button> <button className="table-delete" type="button" onClick={() => deleteRow(row)}>Delete</button></td></tr>)}</tbody></table></div></div> : !loading && <DataTable rows={rows} columns={columns[entity]} onChange={updateRow} onDelete={deleteRow} />}
     {loadingRoles && <div className="role-error">Loading participant roles…</div>}
     {roleEditor && <div className="admin-modal-backdrop" role="presentation"><div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="participant-role-title"><div className="admin-modal-heading"><div><div className="app-kicker">Participant Roles</div><h3 id="participant-role-title">{roleEditor.participant.name}</h3></div><button className="secondary-button" type="button" onClick={() => setRoleEditor(null)} disabled={saving}>Close</button></div><div className="admin-role-list">{roles.length ? roles.map((role) => <label key={role.value} className="admin-role-option"><input type="checkbox" checked={roleEditor.selected.includes(role.value)} onChange={() => toggleRole(role.value)} /> <span>{role.label}</span></label>) : <p>No roles available.</p>}</div><div className="admin-create-actions"><button className="primary-button" type="button" onClick={saveRoleEditor} disabled={saving}>Save Roles</button><button className="secondary-button" type="button" onClick={() => setRoleEditor(null)} disabled={saving}>Cancel</button></div></div></div>}
-    <p className="admin-note">Roles, capabilities, participants, and controlled participant types are backed by Supabase. Participant ↔ Role is now editable as a relationship subtable.</p>
+    <p className="admin-note">Roles, capabilities, participants, and controlled participant types are backed by Supabase. Participant ↔ Role is now editable and visible as a relationship subtable.</p>
   </section>;
 }
