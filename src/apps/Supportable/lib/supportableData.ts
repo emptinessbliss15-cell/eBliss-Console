@@ -16,16 +16,21 @@ export async function fetchParticipantTypes(): Promise<LookupOption[]> {
   return (data ?? []).map((row) => ({ value: row.id, label: row.name }));
 }
 
-export async function ensureParticipantType(name: string): Promise<LookupOption> {
+export async function saveParticipantType(id: string | null, name: string) {
   if (!supabase) throw new Error("Supabase is not configured");
   const cleanName = name.trim();
-  if (!cleanName) throw new Error("Participant type is required");
-  const { data: existing, error: lookupError } = await supabase.from("participant_types").select("id, name").ilike("name", cleanName).maybeSingle();
-  if (lookupError) throw lookupError;
-  if (existing) return { value: existing.id, label: existing.name };
-  const { data, error } = await supabase.from("participant_types").insert({ name: cleanName }).select("id, name").single();
+  if (!cleanName) throw new Error("Participant type name is required");
+  const result = id
+    ? await supabase.from("participant_types").update({ name: cleanName }).eq("id", id).select("id, name").single()
+    : await supabase.from("participant_types").insert({ name: cleanName }).select("id, name").single();
+  if (result.error) throw result.error;
+  return result.data;
+}
+
+export async function deleteParticipantType(id: string) {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const { error } = await supabase.from("participant_types").delete().eq("id", id);
   if (error) throw error;
-  return { value: data.id, label: data.name };
 }
 
 export async function fetchRoles() {
