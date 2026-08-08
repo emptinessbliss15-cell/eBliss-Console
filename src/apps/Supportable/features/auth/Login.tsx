@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { PasswordField } from "../../../components/PasswordField";
+import { PasswordField } from "../../../../components/PasswordField";
 
 export function Login() {
   const [email, setEmail] = useState("");
