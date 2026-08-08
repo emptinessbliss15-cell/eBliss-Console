@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, type DataColumn } from "../../../../components/DataTable";
-import { fetchCapabilities, fetchParticipantTypes, fetchParticipants, fetchRoles, saveCapability, saveParticipant, saveRole, deleteRecord, type LookupOption } from "../../lib/supportableData";
+import { fetchCapabilities, fetchParticipantTypes, fetchParticipants, fetchRoles, saveCapability, saveParticipant, saveRole, deleteRecord, ensureParticipantType, type LookupOption } from "../../lib/supportableData";
 
 type RecordRow = { id: string; name: string; description?: string; status?: string; participant_type_id?: string; archived_at?: string | null; archived_by?: string | null; archive_reason?: string | null };
 type Entity = "roles" | "capabilities" | "participants";
-type NewRecord = { name: string; description: string; status: string; participant_type_id: string; archive_reason: string };
+type NewRecord = { name: string; description: string; status: string; participant_type_id: string; participant_type_name: string; archive_reason: string };
 const statusOptions = ["active", "draft", "inactive"].map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
 
 export function SupportableAdmin() {
@@ -68,18 +68,21 @@ export function SupportableAdmin() {
 
   function startAdd() {
     setError("");
-    setNewRecord({ name: nextDraftName(`New ${singularLabel}`, rows), description: "", status: "draft", participant_type_id: participantTypes[0]?.value ?? "", archive_reason: "" });
+    const firstType = participantTypes[0];
+    setNewRecord({ name: nextDraftName(`New ${singularLabel}`, rows), description: "", status: "draft", participant_type_id: firstType?.value ?? "", participant_type_name: firstType?.label ?? "", archive_reason: "" });
   }
   function cancelAdd() { setNewRecord(null); setError(""); }
 
   async function saveNewRecord() {
     if (!newRecord?.name.trim()) { setError(`${singularLabel} name is required.`); return; }
-    if (entity === "participants" && !newRecord.participant_type_id) { setError("Participant type is required."); return; }
     setSaving(true); setError("");
     try {
       if (entity === "roles") await saveRole(null, newRecord.name, newRecord.status);
       if (entity === "capabilities") await saveCapability(null, newRecord.name);
-      if (entity === "participants") await saveParticipant(null, newRecord.name, newRecord.status, newRecord.participant_type_id, newRecord.description, newRecord.archive_reason);
+      if (entity === "participants") {
+        const participantType = await ensureParticipantType(newRecord.participant_type_name);
+        await saveParticipant(null, newRecord.name, newRecord.status, participantType.value, newRecord.description, newRecord.archive_reason);
+      }
       setNewRecord(null); await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create record"); }
     finally { setSaving(false); }
@@ -102,7 +105,7 @@ export function SupportableAdmin() {
       <div className="admin-create-field"><label htmlFor="new-record-name">Name</label><input id="new-record-name" autoFocus value={newRecord.name} onChange={(event) => setNewRecord((current) => current ? { ...current, name: event.target.value } : current)} /></div>
       {entity === "participants" && <>
         <div className="admin-create-field"><label htmlFor="new-participant-description">Description</label><input id="new-participant-description" value={newRecord.description} onChange={(event) => setNewRecord((current) => current ? { ...current, description: event.target.value } : current)} /></div>
-        <div className="admin-create-field"><label htmlFor="new-participant-type">Participant Type</label><select id="new-participant-type" value={newRecord.participant_type_id} onChange={(event) => setNewRecord((current) => current ? { ...current, participant_type_id: event.target.value } : current)}>{participantTypes.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
+        <div className="admin-create-field"><label htmlFor="new-participant-type">Participant Type</label><input id="new-participant-type" list="participant-type-options" placeholder="Choose or enter a type" value={newRecord.participant_type_name} onChange={(event) => setNewRecord((current) => current ? { ...current, participant_type_name: event.target.value, participant_type_id: "" } : current)} /><datalist id="participant-type-options">{participantTypes.map((option) => <option key={option.value} value={option.label} />)}</datalist></div>
       </>}
       {entity !== "capabilities" && <div className="admin-create-field"><label htmlFor="new-record-status">Status</label><select id="new-record-status" value={newRecord.status} onChange={(event) => setNewRecord((current) => current ? { ...current, status: event.target.value } : current)}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>}
       {entity === "participants" && <div className="admin-create-field"><label htmlFor="new-participant-archive-reason">Archive Reason</label><input id="new-participant-archive-reason" value={newRecord.archive_reason} onChange={(event) => setNewRecord((current) => current ? { ...current, archive_reason: event.target.value } : current)} /></div>}
