@@ -9,6 +9,13 @@ export async function fetchLookupOptions(table: "roles" | "capabilities" | "part
   return (data ?? []).map((row) => ({ value: row.id, label: row.name }));
 }
 
+export async function fetchParticipantTypes(): Promise<LookupOption[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.from("participant_types").select("id, name").order("name");
+  if (error) throw error;
+  return (data ?? []).map((row) => ({ value: row.id, label: row.name }));
+}
+
 export async function fetchRoles() {
   if (!supabase) return [];
   const { data, error } = await supabase.from("roles").select("id, name, status").order("name");
@@ -25,7 +32,7 @@ export async function fetchCapabilities() {
 
 export async function fetchParticipants() {
   if (!supabase) return [];
-  const { data, error } = await supabase.from("participants").select("id, name, status, participant_type_id").order("name");
+  const { data, error } = await supabase.from("participants").select("id, name, description, status, archived_at, archived_by, archive_reason, participant_type_id").order("name");
   if (error) throw error;
   return data ?? [];
 }
@@ -45,10 +52,11 @@ export async function saveCapability(id: string | null, name: string) {
   return result.data;
 }
 
-export async function saveParticipant(id: string | null, name: string, status: string, participantTypeId?: string | null) {
+export async function saveParticipant(id: string | null, name: string, status: string, participantTypeId: string, description?: string, archiveReason?: string | null) {
   if (!supabase) throw new Error("Supabase is not configured");
-  const payload = { name: name.trim(), status: status.toLowerCase(), participant_type_id: participantTypeId || null };
-  const result = id ? await supabase.from("participants").update(payload).eq("id", id).select("id, name, status, participant_type_id").single() : await supabase.from("participants").insert(payload).select("id, name, status, participant_type_id").single();
+  if (!participantTypeId) throw new Error("Participant type is required");
+  const payload = { name: name.trim(), status: status.toLowerCase(), participant_type_id: participantTypeId, description: description?.trim() || null, archive_reason: archiveReason?.trim() || null };
+  const result = id ? await supabase.from("participants").update(payload).eq("id", id).select("id, name, description, status, archived_at, archived_by, archive_reason, participant_type_id").single() : await supabase.from("participants").insert(payload).select("id, name, description, status, archived_at, archived_by, archive_reason, participant_type_id").single();
   if (result.error) throw result.error;
   return result.data;
 }
