@@ -5,6 +5,7 @@ import { fetchCapabilities, fetchParticipants, fetchRoles, saveCapability, saveP
 type RecordRow = { id: string; name: string; status?: string };
 type Entity = "roles" | "capabilities" | "participants";
 
+type NewRecord = { name: string; status: string };
 const statusOptions = ["active", "draft", "inactive"].map((value) => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
 
 export function SupportableAdmin() {
@@ -13,6 +14,7 @@ export function SupportableAdmin() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [newRecord, setNewRecord] = useState<NewRecord | null>(null);
 
   async function load() {
     setLoading(true);
@@ -65,16 +67,31 @@ export function SupportableAdmin() {
     return `${prefix} ${index}`;
   }
 
-  async function addRow() {
+  function startAdd() {
+    setError("");
+    setNewRecord({ name: nextDraftName(`New ${singularLabel}`, rows), status: "draft" });
+  }
+
+  function cancelAdd() {
+    setNewRecord(null);
+    setError("");
+  }
+
+  async function saveNewRecord() {
+    if (!newRecord?.name.trim()) {
+      setError(`${singularLabel} name is required.`);
+      return;
+    }
     setSaving(true); setError("");
     try {
-      const name = nextDraftName(`New ${singularLabel}`, rows);
-      if (entity === "roles") await saveRole(null, name, "draft");
-      if (entity === "capabilities") await saveCapability(null, name);
-      if (entity === "participants") await saveParticipant(null, name, "draft");
+      if (entity === "roles") await saveRole(null, newRecord.name, newRecord.status);
+      if (entity === "capabilities") await saveCapability(null, newRecord.name);
+      if (entity === "participants") await saveParticipant(null, newRecord.name, newRecord.status);
+      setNewRecord(null);
       await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create record"); }
-    finally { setSaving(false); }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to create record");
+    } finally { setSaving(false); }
   }
 
   async function deleteRow(row: RecordRow) {
@@ -85,10 +102,21 @@ export function SupportableAdmin() {
     finally { setSaving(false); }
   }
 
+  function changeEntity(key: Entity) {
+    setEntity(key);
+    setNewRecord(null);
+    setError("");
+  }
+
   return <section className="supportable-admin">
-    <div className="admin-heading"><div><div className="app-kicker">Manage</div><h2>Supportable data</h2><p>Live Supabase data with human-readable names.</p></div><button className="primary-button" type="button" onClick={addRow} disabled={saving}>+ New {singularLabel}</button></div>
-    <nav className="admin-tabs" aria-label="Supportable data types">{(["roles", "capabilities", "participants"] as Entity[]).map((key) => <button key={key} className={entity === key ? "active" : ""} type="button" onClick={() => setEntity(key)}>{key}</button>)}</nav>
+    <div className="admin-heading"><div><div className="app-kicker">Manage</div><h2>Supportable data</h2><p>Live Supabase data with human-readable names.</p></div><button className="primary-button" type="button" onClick={startAdd} disabled={saving || newRecord !== null}>+ New {singularLabel}</button></div>
+    <nav className="admin-tabs" aria-label="Supportable data types">{(["roles", "capabilities", "participants"] as Entity[]).map((key) => <button key={key} className={entity === key ? "active" : ""} type="button" onClick={() => changeEntity(key)}>{key}</button>)}</nav>
     {error && <div className="role-error" role="alert">{error}</div>}
+    {!loading && newRecord && <div className="admin-create-row">
+      <div className="admin-create-field"><label htmlFor="new-record-name">Name</label><input id="new-record-name" autoFocus value={newRecord.name} onChange={(event) => setNewRecord((current) => current ? { ...current, name: event.target.value } : current)} /></div>
+      {entity !== "capabilities" && <div className="admin-create-field"><label htmlFor="new-record-status">Status</label><select id="new-record-status" value={newRecord.status} onChange={(event) => setNewRecord((current) => current ? { ...current, status: event.target.value } : current)}>{statusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>}
+      <div className="admin-create-actions"><button className="primary-button" type="button" onClick={saveNewRecord} disabled={saving}>Save</button><button className="secondary-button" type="button" onClick={cancelAdd} disabled={saving}>Cancel</button></div>
+    </div>}
     <div className="admin-summary">{loading ? "Loading..." : countLabel}{saving ? " · Saving..." : ""}</div>
     {!loading && <DataTable rows={rows} columns={columns[entity]} onChange={updateRow} onDelete={deleteRow} />}
     <p className="admin-note">Roles, capabilities, and participants are now backed by Supabase. Many-to-many role/capability and participant/role editing is the next layer.</p>
