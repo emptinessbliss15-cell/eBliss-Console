@@ -1,19 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
-const viteImportMeta = import.meta as ImportMeta & {
-  env: {
+// Vite normally provides import.meta.env, but keep the app defensive so the
+// Console can run before Supportable's Supabase configuration is installed.
+const env = (import.meta as ImportMeta & {
+  env?: {
     VITE_SUPABASE_URL?: string;
     VITE_SUPABASE_ANON_KEY?: string;
   };
-};
+}).env;
 
-const supabaseUrl = viteImportMeta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = viteImportMeta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = env?.VITE_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-// Keep the Console alive while Supportable is being configured.
-// The actual client is created only when both public Supabase values exist.
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl!, supabaseAnonKey!)
   : null;
