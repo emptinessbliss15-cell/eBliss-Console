@@ -1,28 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "./Supportable/lib/supabase";
 import { Login } from "./Supportable/features/auth/Login";
+import { RoleSelector } from "../components/RoleSelector";
 
 type RoleContext = { current: string; available: string[] };
-
-function getRoleContext(user: User): RoleContext {
-  const metadata = user.user_metadata ?? {};
-  const configuredRoles = Array.isArray(metadata.roles)
-    ? metadata.roles.filter((role): role is string => typeof role === "string" && role.trim().length > 0)
-    : [];
-  const current = typeof metadata.role === "string" && metadata.role.trim().length > 0
-    ? metadata.role
-    : configuredRoles[0] ?? "User";
-  const available = Array.from(new Set([current, ...configuredRoles]));
-  return { current, available };
-}
 
 export default function Supportable() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [intent, setIntent] = useState("");
-  const roleContext = useMemo(() => user ? getRoleContext(user) : null, [user]);
+  const [roleContext, setRoleContext] = useState<RoleContext | null>(null);
   const [currentRole, setCurrentRole] = useState("User");
+  const [roleError, setRoleError] = useState("");
 
   useEffect(() => {
     if (!supabase) return;
@@ -41,8 +31,54 @@ export default function Supportable() {
   }, []);
 
   useEffect(() => {
-    if (roleContext) setCurrentRole(roleContext.current);
-  }, [roleContext]);
+    if (!supabase || !user) {
+      setRoleContext(null);
+      return;
+    }
+
+    async function loadRoles() {
+      setRoleError("");
+      const { data: account, error: accountError } = await supabase!
+        .from("participant_accounts")
+        .select("participant_id")
+        .eq("auth_user_id", user!.id)
+        .maybeSingle();
+
+      if (accountError || !account) {
+        setRoleError("No participant account is linked to this login.");
+        setRoleContext({ current: "User", available: ["User"] });
+        setCurrentRole("User");
+        return;
+      }
+
+      const { data: assignments, error: rolesError } = await supabase!
+        .from("participant_roles")
+        .select("role_id, roles(name, status)")
+        .eq("participant_id", account.participant_id);
+
+      if (rolesError) {
+        setRoleError(rolesError.message);
+        setRoleContext({ current: "User", available: ["User"] });
+        setCurrentRole("User");
+        return;
+      }
+
+      const roles = (assignments ?? [])
+        .map((assignment) => {
+          const role = Array.isArray(assignment.roles) ? assignment.roles[0] : assignment.roles;
+          return role?.status === "active" ? role.name : null;
+        })
+        .filter((role): role is string => typeof role === "string" && role.length > 0);
+
+      const available = Array.from(new Set(roles));
+      const current = available.includes("Owner") ? "Owner" : available[0] ?? "User";
+      const normalizedAvailable = available.length > 0 ? available : ["User"];
+      setRoleContext({ current, available: normalizedAvailable });
+      setCurrentRole(current);
+    }
+
+    loadRoles();
+  }, [user]);
 
   async function signOut() {
     await supabase?.auth.signOut();
@@ -86,13 +122,9 @@ export default function Supportable() {
           <div className="supportable-identity">
             <span>Signed in as <strong>{user.email}</strong></span>
             <span className="identity-separator">·</span>
-            <label className="role-selector">
-              <span>Role:</span>
-              <select value={currentRole} onChange={(event) => setCurrentRole(event.target.value)}>
-                {(roleContext?.available ?? [currentRole]).map((role) => <option key={role} value={role}>{role}</option>)}
-              </select>
-            </label>
+            <RoleSelector currentRole={currentRole} roles={roleContext?.available ?? [currentRole]} onChange={setCurrentRole} />
           </div>
+          {roleError && <div className="role-error" role="status">{roleError}</div>}
         </div>
         <button type="button" onClick={signOut}>Sign out</button>
       </header>
