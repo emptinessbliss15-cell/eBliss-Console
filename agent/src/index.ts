@@ -15,9 +15,11 @@ export class ConsoleAgent extends AIChatAgent<Env> {
   async onChatMessage() {
     const workersai = createWorkersAI({ binding: this.env.AI });
     const browserTools = createBrowserTools({
+      ctx: this.ctx,
       browser: this.env.BROWSER,
       loader: this.env.LOADER,
       quickActions: false,
+      session: { mode: "dynamic" },
     });
 
     const result = streamText({
@@ -28,6 +30,8 @@ export class ConsoleAgent extends AIChatAgent<Env> {
         "Use browser tools to inspect rendered state, screenshots, console errors, network activity, DOM state, and page behavior.",
         "Prefer observation before mutation. When changing state, explain what you are about to do and verify the result afterward.",
         "The browser/testing capability is represented by named Agent Functions in the Console. Treat those functions as the intended permission model for browser actions.",
+        "If the Console requires login, use Browser Run Live View and request human assistance rather than asking the user to disclose credentials in chat.",
+        "Once a human logs in, promote and reuse the browser session so subsequent testing can continue in the authenticated session.",
         "Never expose credentials, tokens, cookies, or other secrets in responses.",
       ].join("\n"),
       messages: await convertToModelMessages(this.messages),
