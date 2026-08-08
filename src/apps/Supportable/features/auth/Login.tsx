@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { PasswordField } from "../../../components/PasswordField";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -15,11 +16,11 @@ export function Login() {
 
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase!.auth.signInWithPassword({ email, password });
         if (error) throw error;
         setMessage("Signed in successfully.");
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase!.auth.signUp({ email, password });
         if (error) throw error;
         setMessage("Account created. Check your email if confirmation is required.");
       }
@@ -38,10 +39,7 @@ export function Login() {
           Email
           <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" />
         </label>
-        <label>
-          Password
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required minLength={6} autoComplete={mode === "login" ? "current-password" : "new-password"} />
-        </label>
+        <PasswordField label="Password" value={password} onChange={setPassword} required minLength={6} autoComplete={mode === "login" ? "current-password" : "new-password"} />
         <button type="submit" disabled={loading}>{loading ? "Working..." : mode === "login" ? "Sign in" : "Create account"}</button>
       </form>
       {message && <p>{message}</p>}
