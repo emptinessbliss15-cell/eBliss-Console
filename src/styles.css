@@ -45,6 +45,12 @@ h1 { margin: 8px 0 10px; font-size: clamp(36px, 7vw, 62px); line-height: 1; }
 .modal-note code, .supportable-notice code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .supportable-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .supportable-header p { color: var(--muted); margin-top: 0; }
+.supportable-identity { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 14px; }
+.supportable-identity strong { color: var(--text); }
+.identity-separator { color: var(--border); }
+.role-selector { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.role-selector select { appearance: none; min-width: 145px; padding: 6px 28px 6px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); color: var(--text); font-weight: 600; }
+.role-error { margin-top: 8px; color: #fca5a5; font-size: 12px; }
 .supportable-auth, .supportable-notice { margin-top: 30px; padding: 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
 .supportable-notice { display: grid; gap: 8px; }
 .supportable-notice span { color: var(--muted); line-height: 1.5; }
