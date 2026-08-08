@@ -57,12 +57,21 @@ export function SupportableAdmin() {
     } finally { setSaving(false); }
   }
 
+  function nextDraftName(prefix: string, existing: RecordRow[]) {
+    const normalized = new Set(existing.map((row) => row.name.trim().toLowerCase()));
+    if (!normalized.has(prefix.toLowerCase())) return prefix;
+    let index = 2;
+    while (normalized.has(`${prefix} ${index}`.toLowerCase())) index += 1;
+    return `${prefix} ${index}`;
+  }
+
   async function addRow() {
     setSaving(true); setError("");
     try {
-      if (entity === "roles") await saveRole(null, `New ${singularLabel}`, "draft");
-      if (entity === "capabilities") await saveCapability(null, `New ${singularLabel}`);
-      if (entity === "participants") await saveParticipant(null, `New ${singularLabel}`, "draft");
+      const name = nextDraftName(`New ${singularLabel}`, rows);
+      if (entity === "roles") await saveRole(null, name, "draft");
+      if (entity === "capabilities") await saveCapability(null, name);
+      if (entity === "participants") await saveParticipant(null, name, "draft");
       await load();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to create record"); }
     finally { setSaving(false); }
