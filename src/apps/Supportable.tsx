@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { supabase } from "./Supportable/lib/supabase";
+import { isSupabaseConfigured, supabase } from "./Supportable/lib/supabase";
 import { Login } from "./Supportable/features/auth/Login";
 
 export default function Supportable() {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
   const [intent, setIntent] = useState("");
 
   useEffect(() => {
+    if (!supabase) return;
+
     async function loadSession() {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase!.auth.getSession();
       setUser(session?.user ?? null);
       setLoading(false);
     }
@@ -23,7 +25,21 @@ export default function Supportable() {
   }, []);
 
   async function signOut() {
-    await supabase.auth.signOut();
+    await supabase?.auth.signOut();
+  }
+
+  if (!isSupabaseConfigured) {
+    return (
+      <section className="supportable-view">
+        <div className="app-kicker">eBliss App</div>
+        <h1>Supportable</h1>
+        <p className="app-lead">Helping people find and fulfill intent.</p>
+        <div className="supportable-notice">
+          <strong>Supportable needs configuration.</strong>
+          <span>Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in the Cloudflare environment, then redeploy.</span>
+        </div>
+      </section>
+    );
   }
 
   if (loading) {
