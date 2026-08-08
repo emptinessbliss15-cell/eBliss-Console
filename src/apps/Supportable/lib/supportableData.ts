@@ -16,6 +16,18 @@ export async function fetchParticipantTypes(): Promise<LookupOption[]> {
   return (data ?? []).map((row) => ({ value: row.id, label: row.name }));
 }
 
+export async function ensureParticipantType(name: string): Promise<LookupOption> {
+  if (!supabase) throw new Error("Supabase is not configured");
+  const cleanName = name.trim();
+  if (!cleanName) throw new Error("Participant type is required");
+  const { data: existing, error: lookupError } = await supabase.from("participant_types").select("id, name").ilike("name", cleanName).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (existing) return { value: existing.id, label: existing.name };
+  const { data, error } = await supabase.from("participant_types").insert({ name: cleanName }).select("id, name").single();
+  if (error) throw error;
+  return { value: data.id, label: data.name };
+}
+
 export async function fetchRoles() {
   if (!supabase) return [];
   const { data, error } = await supabase.from("roles").select("id, name, status").order("name");
