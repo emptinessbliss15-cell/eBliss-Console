@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { Menu, X, LogIn, ChevronDown } from 'lucide-react'
 import Supportable from './apps/Supportable'
 
@@ -10,11 +10,35 @@ const themes: Record<ThemeName, string> = {
   midnight: 'Midnight',
 }
 
+const devPassword = import.meta.env.VITE_DEV_PASSWORD as string | undefined
+
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [loginOpen, setLoginOpen] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
+  const [loginError, setLoginError] = useState('')
   const [theme, setTheme] = useState<ThemeName>('default')
   const [activeApp, setActiveApp] = useState('Supportable')
+
+  function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const password = String(form.get('password') ?? '')
+
+    if (!devPassword) {
+      setLoginError('Development password is not configured.')
+      return
+    }
+
+    if (password !== devPassword) {
+      setLoginError('Incorrect password.')
+      return
+    }
+
+    setAuthenticated(true)
+    setLoginError('')
+    setLoginOpen(false)
+  }
 
   return (
     <div className={`console theme-${theme}`}>
@@ -35,9 +59,9 @@ export default function App() {
             </select>
             <ChevronDown size={15} />
           </label>
-          <button className="login-button" onClick={() => setLoginOpen(true)}>
+          <button className="login-button" onClick={() => { setLoginError(''); setLoginOpen(true) }}>
             <LogIn size={17} />
-            <span>Login</span>
+            <span>{authenticated ? 'Logged in' : 'Login'}</span>
           </button>
         </div>
       </header>
@@ -65,14 +89,15 @@ export default function App() {
             <button className="modal-close" aria-label="Close login" onClick={() => setLoginOpen(false)}><X size={20} /></button>
             <h2 id="login-title">eBliss Login</h2>
             <p className="modal-description">Development login for the console.</p>
-            <form onSubmit={(event) => { event.preventDefault(); setLoginOpen(false) }}>
+            <form onSubmit={handleLogin}>
               <label>
                 Password
                 <input name="password" type="password" autoFocus placeholder="Environment password" />
               </label>
+              {loginError && <div className="login-error" role="alert">{loginError}</div>}
               <button className="primary-button" type="submit">Continue</button>
             </form>
-            <p className="modal-note">Authentication will move to the configured environment/identity service as the console evolves.</p>
+            <p className="modal-note">Uses the configured <code>VITE_DEV_PASSWORD</code> environment variable. No password is stored in the repository.</p>
           </section>
         </div>
       )}
