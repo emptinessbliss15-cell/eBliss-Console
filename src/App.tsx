@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { X, LogIn, LogOut, ChevronDown, Headphones, List, Briefcase, Settings } from 'lucide-react'
 import { PasswordField } from './components/PasswordField'
+import AppTree, { TreeNode } from './components/AppTree'
 import Supportable from './apps/SupportableView'
 import { supabase } from './lib/supabase'
 
@@ -46,6 +47,31 @@ export default function App() {
     setSupportableView(view)
   }
 
+  const treeNodes: TreeNode[] = [
+    {
+      id: 'supportable',
+      label: 'Supportable',
+      icon: <Headphones size={21} />,
+      onSelect: () => selectSupportable('Work'),
+      children: [
+        { id: 'supportable-work', label: 'Work', icon: <Briefcase size={18} />, onSelect: () => selectSupportable('Work') },
+        { id: 'supportable-manage', label: 'Manage', icon: <Settings size={18} />, onSelect: () => selectSupportable('Manage') },
+      ],
+    },
+    {
+      id: 'lists',
+      label: 'Lists',
+      icon: <List size={21} />,
+      onSelect: () => setActiveApp('Lists'),
+    },
+  ]
+
+  const activeTreeId = activeApp === 'Lists'
+    ? 'lists'
+    : activeApp === 'Supportable'
+      ? `supportable-${supportableView.toLowerCase()}`
+      : null
+
   return <div className={`console theme-${theme}`}>
     <header className="console-header">
       <div className="header-brand"><img className="header-logo" src="/logoicon.png" alt="eBliss" /><div className="brand">eBliss Console</div></div>
@@ -55,13 +81,7 @@ export default function App() {
       </div>
     </header>
     {authenticated && <div className="console-workspace">
-      <aside className="app-tree" aria-label="Apps">
-        <div className="tree-title">Apps</div>
-        <button className={`tree-app ${activeApp === 'Supportable' && supportableView === 'Work' ? 'active' : ''}`} onClick={() => selectSupportable('Work')} title="Supportable" aria-label="Supportable"><Headphones size={21} /></button>
-        <button className={`tree-app tree-child ${activeApp === 'Supportable' && supportableView === 'Work' ? 'active' : ''}`} onClick={() => selectSupportable('Work')} title="Work" aria-label="Supportable Work"><Briefcase size={18} /></button>
-        <button className={`tree-app tree-child ${activeApp === 'Supportable' && supportableView === 'Manage' ? 'active' : ''}`} onClick={() => selectSupportable('Manage')} title="Manage" aria-label="Supportable Manage"><Settings size={18} /></button>
-        <button className={`tree-app ${activeApp === 'Lists' ? 'active' : ''}`} onClick={() => setActiveApp('Lists')} title="Lists" aria-label="Lists"><List size={21} /></button>
-      </aside>
+      <AppTree nodes={treeNodes} activeId={activeTreeId} />
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
         {activeApp === 'Lists' && <section className="app-placeholder"><div className="app-kicker">eB-Lists</div><h1>Lists</h1><p className="app-lead">Lists app will load here.</p></section>}
