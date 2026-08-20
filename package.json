@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ebliss/app-panel": "github:emptinessbliss15-cell/App-Panel",
+    "@ebliss/tree": "github:emptinessbliss15-cell/Tree",
     "@supabase/supabase-js": "^2.57.0",
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
