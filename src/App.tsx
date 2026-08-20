@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { X, LogIn, LogOut, ChevronDown, Headphones, List } from 'lucide-react'
+import { X, LogIn, LogOut, ChevronDown, Headphones, List, Briefcase, Settings } from 'lucide-react'
 import { PasswordField } from './components/PasswordField'
 import Supportable from './apps/SupportableView'
 import { supabase } from './lib/supabase'
@@ -57,9 +57,9 @@ export default function App() {
     {authenticated && <div className="console-workspace">
       <aside className="app-tree" aria-label="Apps">
         <div className="tree-title">Apps</div>
-        <button className={`tree-app ${activeApp === 'Supportable' && supportableView === 'Work' ? 'active' : ''}`} onClick={() => selectSupportable('Work')} title="Supportable — Work" aria-label="Supportable — Work"><Headphones size={21} /></button>
-        <button className={`tree-app tree-child ${activeApp === 'Supportable' && supportableView === 'Work' ? 'active' : ''}`} onClick={() => selectSupportable('Work')} title="Work" aria-label="Supportable Work">W</button>
-        <button className={`tree-app tree-child ${activeApp === 'Supportable' && supportableView === 'Manage' ? 'active' : ''}`} onClick={() => selectSupportable('Manage')} title="Manage" aria-label="Supportable Manage">M</button>
+        <button className={`tree-app ${activeApp === 'Supportable' && supportableView === 'Work' ? 'active' : ''}`} onClick={() => selectSupportable('Work')} title="Supportable" aria-label="Supportable"><Headphones size={21} /></button>
+        <button className={`tree-app tree-child ${activeApp === 'Supportable' && supportableView === 'Work' ? 'active' : ''}`} onClick={() => selectSupportable('Work')} title="Work" aria-label="Supportable Work"><Briefcase size={18} /></button>
+        <button className={`tree-app tree-child ${activeApp === 'Supportable' && supportableView === 'Manage' ? 'active' : ''}`} onClick={() => selectSupportable('Manage')} title="Manage" aria-label="Supportable Manage"><Settings size={18} /></button>
         <button className={`tree-app ${activeApp === 'Lists' ? 'active' : ''}`} onClick={() => setActiveApp('Lists')} title="Lists" aria-label="Lists"><List size={21} /></button>
       </aside>
       <main className="app-pane">
