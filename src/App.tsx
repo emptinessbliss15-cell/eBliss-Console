@@ -12,7 +12,6 @@ type ThemeName = 'default' | 'light' | 'midnight'
 const themes: Record<ThemeName, string> = { default: 'Default', light: 'Light', midnight: 'Midnight' }
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || 'dev'
 type AppName = 'Supportable' | 'Lists'
-
 const LISTS_APP_URL = 'https://dev-eb-lists.emptinessbliss15-cell.workers.dev/'
 
 export default function App() {
@@ -104,7 +103,7 @@ export default function App() {
       {activeApp && <aside className="app-tree" aria-label={`${activeApp} navigation`}><Tree nodes={treeNodes} selectedId={activeTreeId} onSelect={handleTreeSelect} /></aside>}
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
-        {activeApp === 'Lists' && <iframe className="lists-app-frame" src={LISTS_APP_URL} title="eB Lists" />}
+        {activeApp === 'Lists' && <iframe src={LISTS_APP_URL} title="eB Lists" style={{ display: 'block', width: '100%', height: 'calc(100vh - 64px)', minHeight: '700px', border: 0, background: '#fff' }} />}
         {!activeApp && <section className="app-placeholder"><div className="app-kicker">eBliss Console</div><h1>Select an app.</h1><p className="app-lead">Choose Lists or Supportable from the App Panel.</p></section>}
       </main>
     </div>}
