@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { BriefcaseBusiness, Settings2 } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./Supportable/lib/supabase";
 import { Login } from "./Supportable/features/auth/Login";
 import { ParticipantSelector } from "../components/ParticipantSelector";
@@ -96,7 +97,10 @@ export default function SupportableView() {
       <ParticipantSelector currentParticipantId={currentParticipantId} participants={participants} onChange={setCurrentParticipantId} />
       <span className="identity-separator">·</span><RoleSelector currentRole={currentRole} roles={roleContext?.available ?? [currentRole]} onChange={setCurrentRole} />
     </div>{roleError && <div className="role-error" role="status">{roleError}</div>}</div><button type="button" onClick={signOut}>Sign out</button></header>
-    <div className="supportable-view-tabs"><button type="button" className={!showManage ? "active" : ""} onClick={() => setShowManage(false)}>Work</button><button type="button" className={showManage ? "active" : ""} onClick={() => setShowManage(true)}>Manage</button></div>
+    <div className="supportable-view-tabs" aria-label="Supportable views">
+      <button type="button" className={!showManage ? "active" : ""} title="Work" aria-label="Work" onClick={() => setShowManage(false)}><BriefcaseBusiness size={20} /></button>
+      <button type="button" className={showManage ? "active" : ""} title="Manage" aria-label="Manage" onClick={() => setShowManage(true)}><Settings2 size={20} /></button>
+    </div>
     {showManage ? <SupportableAdmin /> : <>
       <section className="supportable-intent"><h2>What are you trying to accomplish?</h2><textarea value={intent} onChange={(event) => setIntent(event.target.value)} placeholder="Describe your intent..." /><button type="button" disabled title="Intent processing is not implemented yet">Continue</button></section>
       <ResponseComposer />
