@@ -13,6 +13,8 @@ const themes: Record<ThemeName, string> = { default: 'Default', light: 'Light', 
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || 'dev'
 type AppName = 'Supportable' | 'Lists'
 
+const LISTS_APP_URL = 'https://dev-eb-lists.emptinessbliss15-cell.workers.dev/'
+
 export default function App() {
   const [loginOpen, setLoginOpen] = useState(false)
   const [userEmail, setUserEmail] = useState('')
@@ -102,7 +104,7 @@ export default function App() {
       {activeApp && <aside className="app-tree" aria-label={`${activeApp} navigation`}><Tree nodes={treeNodes} selectedId={activeTreeId} onSelect={handleTreeSelect} /></aside>}
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
-        {activeApp === 'Lists' && <section className="app-placeholder"><div className="app-kicker">eB-Lists</div><h1>Lists</h1><p className="app-lead">{activeListId ? `List selected: ${activeListId}` : 'Select a list from the tree.'}</p></section>}
+        {activeApp === 'Lists' && <iframe className="lists-app-frame" src={LISTS_APP_URL} title="eB Lists" />}
         {!activeApp && <section className="app-placeholder"><div className="app-kicker">eBliss Console</div><h1>Select an app.</h1><p className="app-lead">Choose Lists or Supportable from the App Panel.</p></section>}
       </main>
     </div>}
