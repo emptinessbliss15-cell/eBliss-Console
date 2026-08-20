@@ -19,5 +19,9 @@
     "react-dom": "latest",
     "lucide-react": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "trustedDependencies": [
+    "@ebliss/app-panel",
+    "@ebliss/tree"
+  ]
 }
