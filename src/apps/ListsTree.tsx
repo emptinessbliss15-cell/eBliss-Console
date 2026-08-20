@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { List, ListTree } from 'lucide-react'
-import { TreeNode, TreeProvider } from '../components/AppTree'
+import type { TreeNode } from '@ebliss/tree'
 import { supabase } from '../lib/supabase'
 
 type ListRecord = {
@@ -10,7 +10,7 @@ type ListRecord = {
   position: number
 }
 
-function buildNodes(records: ListRecord[], onSelect: (id: string) => void): TreeNode[] {
+function buildNodes(records: ListRecord[]): TreeNode[] {
   const byParent = new Map<string | null, ListRecord[]>()
   for (const record of records) {
     const group = byParent.get(record.parent_list_id) ?? []
@@ -25,7 +25,6 @@ function buildNodes(records: ListRecord[], onSelect: (id: string) => void): Tree
         id: `list-${record.id}`,
         label: record.name,
         icon: <ListTree size={18} />,
-        onSelect: () => onSelect(record.id),
         children: makeNodes(record.id),
       }))
 
@@ -37,7 +36,7 @@ function buildNodes(records: ListRecord[], onSelect: (id: string) => void): Tree
   }]
 }
 
-export function useListsTree(onSelect: (id: string) => void): TreeNode[] {
+export function useListsTree(): TreeNode[] {
   const [records, setRecords] = useState<ListRecord[]>([])
 
   useEffect(() => {
@@ -57,9 +56,5 @@ export function useListsTree(onSelect: (id: string) => void): TreeNode[] {
     return () => { mounted = false }
   }, [])
 
-  return buildNodes(records, onSelect)
-}
-
-export function createListsTreeProvider(nodes: TreeNode[]): TreeProvider {
-  return { getTree: () => nodes }
+  return buildNodes(records)
 }

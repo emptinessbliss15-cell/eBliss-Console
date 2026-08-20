@@ -1,10 +1,11 @@
-import { FormEvent, useEffect, useState } from 'react'
-import { X, LogIn, LogOut, ChevronDown } from 'lucide-react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { ChevronDown, Headphones, List, LogIn, LogOut, X } from 'lucide-react'
+import { AppPanel, AppDefinition } from '@ebliss/app-panel'
+import { Tree, TreeNode } from '@ebliss/tree'
 import { PasswordField } from './components/PasswordField'
-import AppTree, { TreeNode } from './components/AppTree'
 import Supportable from './apps/SupportableView'
-import { createSupportableTreeProvider, SupportableView } from './apps/SupportableTree'
-import { createListsTreeProvider, useListsTree } from './apps/ListsTree'
+import { createSupportableTree, SupportableView } from './apps/SupportableTree'
+import { useListsTree } from './apps/ListsTree'
 import { supabase } from './lib/supabase'
 
 type ThemeName = 'default' | 'light' | 'midnight'
@@ -23,6 +24,8 @@ export default function App() {
   const [activeListId, setActiveListId] = useState<string | null>(null)
   const [supportableView, setSupportableView] = useState<SupportableView>('Work')
   const authenticated = !!userEmail
+  const listsTreeNodes = useListsTree()
+  const supportableTreeNodes = useMemo(() => createSupportableTree(), [])
 
   useEffect(() => {
     let mounted = true
@@ -44,10 +47,10 @@ export default function App() {
     setActiveApp(null); setActiveListId(null); setSupportableView('Work')
   }
 
-  function selectSupportable(view: SupportableView) {
-    setActiveApp('Supportable')
-    setActiveListId(null)
-    setSupportableView(view)
+  function selectApp(app: AppDefinition) {
+    const next = app.id === 'lists' ? 'Lists' : 'Supportable'
+    setActiveApp(next)
+    if (next !== 'Lists') setActiveListId(null)
   }
 
   function selectList(id: string) {
@@ -55,19 +58,36 @@ export default function App() {
     setActiveListId(id)
   }
 
-  const supportableTreeNodes = createSupportableTreeProvider(selectSupportable).getTree()
-  const listsTreeNodes = useListsTree(selectList)
-  const treeProviders = [
-    { getTree: () => supportableTreeNodes },
-    createListsTreeProvider(listsTreeNodes),
-  ]
-  const treeNodes: TreeNode[] = treeProviders.flatMap((provider) => provider.getTree())
+  function selectSupportable(view: SupportableView) {
+    setActiveApp('Supportable')
+    setActiveListId(null)
+    setSupportableView(view)
+  }
+
+  const apps: AppDefinition[] = useMemo(() => [
+    { id: 'lists', name: 'Lists', icon: <List size={21} /> },
+    { id: 'supportable', name: 'Supportable', icon: <Headphones size={21} /> },
+  ], [])
+
+  const treeNodes: TreeNode[] = activeApp === 'Lists'
+    ? listsTreeNodes
+    : activeApp === 'Supportable'
+      ? supportableTreeNodes
+      : []
 
   const activeTreeId = activeApp === 'Lists'
     ? activeListId ? `list-${activeListId}` : 'lists'
     : activeApp === 'Supportable'
       ? `supportable-${supportableView.toLowerCase()}`
-      : null
+      : undefined
+
+  function handleTreeSelect(node: TreeNode) {
+    if (node.id === 'lists') { setActiveApp('Lists'); setActiveListId(null); return }
+    if (node.id.startsWith('list-')) { selectList(node.id.slice(5)); return }
+    if (node.id === 'supportable') { selectSupportable('Work'); return }
+    if (node.id === 'supportable-work') { selectSupportable('Work'); return }
+    if (node.id === 'supportable-manage') { selectSupportable('Manage') }
+  }
 
   return <div className={`console theme-${theme}`}>
     <header className="console-header">
@@ -78,10 +98,12 @@ export default function App() {
       </div>
     </header>
     {authenticated && <div className="console-workspace">
-      <AppTree nodes={treeNodes} activeId={activeTreeId} />
+      <AppPanel apps={apps} selectedAppId={activeApp?.toLowerCase()} onSelect={selectApp} />
+      {activeApp && <aside className="app-tree" aria-label={`${activeApp} navigation`}><Tree nodes={treeNodes} selectedId={activeTreeId} onSelect={handleTreeSelect} /></aside>}
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
         {activeApp === 'Lists' && <section className="app-placeholder"><div className="app-kicker">eB-Lists</div><h1>Lists</h1><p className="app-lead">{activeListId ? `List selected: ${activeListId}` : 'Select a list from the tree.'}</p></section>}
+        {!activeApp && <section className="app-placeholder"><div className="app-kicker">eBliss Console</div><h1>Select an app.</h1><p className="app-lead">Choose Lists or Supportable from the App Panel.</p></section>}
       </main>
     </div>}
     {!authenticated && <main className="app-container"><section className="welcome-view"><div className="app-kicker">eBliss Console</div><h1>Welcome.</h1><p className="app-lead">Use Login in the upper-right.</p></section></main>}
