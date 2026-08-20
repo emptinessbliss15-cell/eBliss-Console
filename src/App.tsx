@@ -1,15 +1,16 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { X, LogIn, LogOut, ChevronDown, Headphones, List, Briefcase, Settings } from 'lucide-react'
+import { X, LogIn, LogOut, ChevronDown } from 'lucide-react'
 import { PasswordField } from './components/PasswordField'
 import AppTree, { TreeNode } from './components/AppTree'
-import Supportable from './apps/SupportableView'
+import Supportable, { } from './apps/SupportableView'
+import { createSupportableTreeProvider, SupportableView } from './apps/SupportableTree'
+import { createListsTreeProvider } from './apps/ListsTree'
 import { supabase } from './lib/supabase'
 
 type ThemeName = 'default' | 'light' | 'midnight'
 const themes: Record<ThemeName, string> = { default: 'Default', light: 'Light', midnight: 'Midnight' }
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || 'dev'
 type AppName = 'Supportable' | 'Lists'
-type SupportableView = 'Work' | 'Manage'
 
 export default function App() {
   const [loginOpen, setLoginOpen] = useState(false)
@@ -47,24 +48,11 @@ export default function App() {
     setSupportableView(view)
   }
 
-  const treeNodes: TreeNode[] = [
-    {
-      id: 'supportable',
-      label: 'Supportable',
-      icon: <Headphones size={21} />,
-      onSelect: () => selectSupportable('Work'),
-      children: [
-        { id: 'supportable-work', label: 'Work', icon: <Briefcase size={18} />, onSelect: () => selectSupportable('Work') },
-        { id: 'supportable-manage', label: 'Manage', icon: <Settings size={18} />, onSelect: () => selectSupportable('Manage') },
-      ],
-    },
-    {
-      id: 'lists',
-      label: 'Lists',
-      icon: <List size={21} />,
-      onSelect: () => setActiveApp('Lists'),
-    },
+  const treeProviders = [
+    createSupportableTreeProvider(selectSupportable),
+    createListsTreeProvider(() => setActiveApp('Lists')),
   ]
+  const treeNodes: TreeNode[] = treeProviders.flatMap((provider) => provider.getTree())
 
   const activeTreeId = activeApp === 'Lists'
     ? 'lists'
