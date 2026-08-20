@@ -9,8 +9,13 @@ import { SupportableAdmin } from "./Supportable/features/admin/SupportableAdmin"
 
 type Participant = { id: string; name: string };
 type RoleContext = { current: string; available: string[] };
+type SupportableView = "Work" | "Manage";
 
-export default function SupportableView() {
+type SupportableViewProps = {
+  view?: SupportableView;
+};
+
+export default function SupportableView({ view = "Work" }: SupportableViewProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured);
   const [intent, setIntent] = useState("");
@@ -19,7 +24,6 @@ export default function SupportableView() {
   const [roleContext, setRoleContext] = useState<RoleContext | null>(null);
   const [currentRole, setCurrentRole] = useState("User");
   const [roleError, setRoleError] = useState("");
-  const [showManage, setShowManage] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -96,8 +100,7 @@ export default function SupportableView() {
       <ParticipantSelector currentParticipantId={currentParticipantId} participants={participants} onChange={setCurrentParticipantId} />
       <span className="identity-separator">·</span><RoleSelector currentRole={currentRole} roles={roleContext?.available ?? [currentRole]} onChange={setCurrentRole} />
     </div>{roleError && <div className="role-error" role="status">{roleError}</div>}</div><button type="button" onClick={signOut}>Sign out</button></header>
-    <div className="supportable-view-tabs"><button type="button" className={!showManage ? "active" : ""} onClick={() => setShowManage(false)}>Work</button><button type="button" className={showManage ? "active" : ""} onClick={() => setShowManage(true)}>Manage</button></div>
-    {showManage ? <SupportableAdmin /> : <>
+    {view === "Manage" ? <SupportableAdmin /> : <>
       <section className="supportable-intent"><h2>What are you trying to accomplish?</h2><textarea value={intent} onChange={(event) => setIntent(event.target.value)} placeholder="Describe your intent..." /><button type="button" disabled title="Intent processing is not implemented yet">Continue</button></section>
       <ResponseComposer />
     </>}

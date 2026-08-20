@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { X, LogIn, LogOut, ChevronDown, Headphones, List } from 'lucide-react'
+import { X, LogIn, LogOut, ChevronDown, Headphones, List, Briefcase, Settings } from 'lucide-react'
 import { PasswordField } from './components/PasswordField'
 import Supportable from './apps/SupportableView'
 import { supabase } from './lib/supabase'
@@ -8,6 +8,7 @@ type ThemeName = 'default' | 'light' | 'midnight'
 const themes: Record<ThemeName, string> = { default: 'Default', light: 'Light', midnight: 'Midnight' }
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || 'dev'
 type AppName = 'Supportable' | 'Lists'
+type SupportableView = 'Work' | 'Manage'
 
 export default function App() {
   const [loginOpen, setLoginOpen] = useState(false)
@@ -17,6 +18,7 @@ export default function App() {
   const [password, setPassword] = useState('')
   const [theme, setTheme] = useState<ThemeName>('default')
   const [activeApp, setActiveApp] = useState<AppName | null>(null)
+  const [supportableView, setSupportableView] = useState<SupportableView>('Work')
   const authenticated = !!userEmail
 
   useEffect(() => {
@@ -30,13 +32,18 @@ export default function App() {
     event.preventDefault(); setLoginError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setLoginError(error.message); return }
-    setPassword(''); setLoginOpen(false); setActiveApp(null)
+    setPassword(''); setLoginOpen(false); setActiveApp(null); setSupportableView('Work')
   }
 
   async function handleLogout() {
     const { error } = await supabase.auth.signOut()
     if (error) setLoginError(error.message)
-    setActiveApp(null)
+    setActiveApp(null); setSupportableView('Work')
+  }
+
+  function selectSupportable(view: SupportableView) {
+    setActiveApp('Supportable')
+    setSupportableView(view)
   }
 
   return <div className={`console theme-${theme}`}>
@@ -50,11 +57,13 @@ export default function App() {
     {authenticated && <div className="console-workspace">
       <aside className="app-tree" aria-label="Apps">
         <div className="tree-title">Apps</div>
-        <button className={`tree-app ${activeApp === 'Supportable' ? 'active' : ''}`} onClick={() => setActiveApp('Supportable')} title="Supportable" aria-label="Supportable"><Headphones size={21} /></button>
+        <button className={`tree-app ${activeApp === 'Supportable' && supportableView === 'Work' ? 'active' : ''}`} onClick={() => selectSupportable('Work')} title="Supportable" aria-label="Supportable"><Headphones size={21} /></button>
+        <button className={`tree-app tree-child ${activeApp === 'Supportable' && supportableView === 'Work' ? 'active' : ''}`} onClick={() => selectSupportable('Work')} title="Work" aria-label="Supportable Work"><Briefcase size={18} /></button>
+        <button className={`tree-app tree-child ${activeApp === 'Supportable' && supportableView === 'Manage' ? 'active' : ''}`} onClick={() => selectSupportable('Manage')} title="Manage" aria-label="Supportable Manage"><Settings size={18} /></button>
         <button className={`tree-app ${activeApp === 'Lists' ? 'active' : ''}`} onClick={() => setActiveApp('Lists')} title="Lists" aria-label="Lists"><List size={21} /></button>
       </aside>
       <main className="app-pane">
-        {activeApp === 'Supportable' && <Supportable />}
+        {activeApp === 'Supportable' && <Supportable view={supportableView} />}
         {activeApp === 'Lists' && <section className="app-placeholder"><div className="app-kicker">eB-Lists</div><h1>Lists</h1><p className="app-lead">Lists app will load here.</p></section>}
       </main>
     </div>}
