@@ -1,15 +1,16 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { X, LogIn, LogOut, ChevronDown, Headphones, List, Briefcase, Settings } from 'lucide-react'
+import { X, LogIn, LogOut, ChevronDown } from 'lucide-react'
 import { PasswordField } from './components/PasswordField'
 import AppTree, { TreeNode } from './components/AppTree'
 import Supportable from './apps/SupportableView'
+import { createSupportableTreeProvider, SupportableView } from './apps/SupportableTree'
+import { createListsTreeProvider, useListsTree } from './apps/ListsTree'
 import { supabase } from './lib/supabase'
 
 type ThemeName = 'default' | 'light' | 'midnight'
 const themes: Record<ThemeName, string> = { default: 'Default', light: 'Light', midnight: 'Midnight' }
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || 'dev'
 type AppName = 'Supportable' | 'Lists'
-type SupportableView = 'Work' | 'Manage'
 
 export default function App() {
   const [loginOpen, setLoginOpen] = useState(false)
@@ -19,6 +20,7 @@ export default function App() {
   const [password, setPassword] = useState('')
   const [theme, setTheme] = useState<ThemeName>('default')
   const [activeApp, setActiveApp] = useState<AppName | null>(null)
+  const [activeListId, setActiveListId] = useState<string | null>(null)
   const [supportableView, setSupportableView] = useState<SupportableView>('Work')
   const authenticated = !!userEmail
 
@@ -33,41 +35,36 @@ export default function App() {
     event.preventDefault(); setLoginError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setLoginError(error.message); return }
-    setPassword(''); setLoginOpen(false); setActiveApp(null); setSupportableView('Work')
+    setPassword(''); setLoginOpen(false); setActiveApp(null); setActiveListId(null); setSupportableView('Work')
   }
 
   async function handleLogout() {
     const { error } = await supabase.auth.signOut()
     if (error) setLoginError(error.message)
-    setActiveApp(null); setSupportableView('Work')
+    setActiveApp(null); setActiveListId(null); setSupportableView('Work')
   }
 
   function selectSupportable(view: SupportableView) {
     setActiveApp('Supportable')
+    setActiveListId(null)
     setSupportableView(view)
   }
 
-  const treeNodes: TreeNode[] = [
-    {
-      id: 'supportable',
-      label: 'Supportable',
-      icon: <Headphones size={21} />,
-      onSelect: () => selectSupportable('Work'),
-      children: [
-        { id: 'supportable-work', label: 'Work', icon: <Briefcase size={18} />, onSelect: () => selectSupportable('Work') },
-        { id: 'supportable-manage', label: 'Manage', icon: <Settings size={18} />, onSelect: () => selectSupportable('Manage') },
-      ],
-    },
-    {
-      id: 'lists',
-      label: 'Lists',
-      icon: <List size={21} />,
-      onSelect: () => setActiveApp('Lists'),
-    },
+  function selectList(id: string) {
+    setActiveApp('Lists')
+    setActiveListId(id)
+  }
+
+  const supportableTreeNodes = createSupportableTreeProvider(selectSupportable).getTree()
+  const listsTreeNodes = useListsTree(selectList)
+  const treeProviders = [
+    { getTree: () => supportableTreeNodes },
+    createListsTreeProvider(listsTreeNodes),
   ]
+  const treeNodes: TreeNode[] = treeProviders.flatMap((provider) => provider.getTree())
 
   const activeTreeId = activeApp === 'Lists'
-    ? 'lists'
+    ? activeListId ? `list-${activeListId}` : 'lists'
     : activeApp === 'Supportable'
       ? `supportable-${supportableView.toLowerCase()}`
       : null
@@ -84,7 +81,7 @@ export default function App() {
       <AppTree nodes={treeNodes} activeId={activeTreeId} />
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
-        {activeApp === 'Lists' && <section className="app-placeholder"><div className="app-kicker">eB-Lists</div><h1>Lists</h1><p className="app-lead">Lists app will load here.</p></section>}
+        {activeApp === 'Lists' && <section className="app-placeholder"><div className="app-kicker">eB-Lists</div><h1>Lists</h1><p className="app-lead">{activeListId ? `List selected: ${activeListId}` : 'Select a list from the tree.'}</p></section>}
       </main>
     </div>}
     {!authenticated && <main className="app-container"><section className="welcome-view"><div className="app-kicker">eBliss Console</div><h1>Welcome.</h1><p className="app-lead">Use Login in the upper-right.</p></section></main>}
