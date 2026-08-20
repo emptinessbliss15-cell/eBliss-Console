@@ -12,7 +12,7 @@ type ThemeName = 'default' | 'light' | 'midnight'
 const themes: Record<ThemeName, string> = { default: 'Default', light: 'Light', midnight: 'Midnight' }
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || 'dev'
 type AppName = 'Supportable' | 'Lists'
-const LISTS_APP_URL = 'https://dev-eb-lists.emptinessbliss15-cell.workers.dev/'
+const LISTS_APP_URL = 'https://dev-eb-lists.emptinessbliss15.workers.dev/'
 
 export default function App() {
   const [loginOpen, setLoginOpen] = useState(false)
