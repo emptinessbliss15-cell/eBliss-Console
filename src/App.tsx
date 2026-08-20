@@ -4,7 +4,7 @@ import { AppPanel, AppDefinition } from '@ebliss/app-panel'
 import { Tree, TreeNode } from '@ebliss/tree'
 import { PasswordField } from './components/PasswordField'
 import Supportable from './apps/SupportableView'
-import { createSupportableTreeProvider, SupportableView } from './apps/SupportableTree'
+import { createSupportableTree, SupportableView } from './apps/SupportableTree'
 import { useListsTree } from './apps/ListsTree'
 import { supabase } from './lib/supabase'
 
@@ -24,6 +24,8 @@ export default function App() {
   const [activeListId, setActiveListId] = useState<string | null>(null)
   const [supportableView, setSupportableView] = useState<SupportableView>('Work')
   const authenticated = !!userEmail
+  const listsTreeNodes = useListsTree()
+  const supportableTreeNodes = useMemo(() => createSupportableTree(), [])
 
   useEffect(() => {
     let mounted = true
@@ -46,7 +48,7 @@ export default function App() {
   }
 
   function selectApp(app: AppDefinition) {
-    const next = app.id as AppName
+    const next = app.id === 'lists' ? 'Lists' : 'Supportable'
     setActiveApp(next)
     if (next !== 'Lists') setActiveListId(null)
   }
@@ -68,9 +70,9 @@ export default function App() {
   ], [])
 
   const treeNodes: TreeNode[] = activeApp === 'Lists'
-    ? useListsTree(selectList)
+    ? listsTreeNodes
     : activeApp === 'Supportable'
-      ? createSupportableTreeProvider(selectSupportable).getTree()
+      ? supportableTreeNodes
       : []
 
   const activeTreeId = activeApp === 'Lists'
