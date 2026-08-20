@@ -4,7 +4,7 @@ import { PasswordField } from './components/PasswordField'
 import AppTree, { TreeNode } from './components/AppTree'
 import Supportable from './apps/SupportableView'
 import { createSupportableTreeProvider, SupportableView } from './apps/SupportableTree'
-import { createListsTreeProvider } from './apps/ListsTree'
+import { createListsTreeProvider, useListsTree } from './apps/ListsTree'
 import { supabase } from './lib/supabase'
 
 type ThemeName = 'default' | 'light' | 'midnight'
@@ -20,6 +20,7 @@ export default function App() {
   const [password, setPassword] = useState('')
   const [theme, setTheme] = useState<ThemeName>('default')
   const [activeApp, setActiveApp] = useState<AppName | null>(null)
+  const [activeListId, setActiveListId] = useState<string | null>(null)
   const [supportableView, setSupportableView] = useState<SupportableView>('Work')
   const authenticated = !!userEmail
 
@@ -34,28 +35,36 @@ export default function App() {
     event.preventDefault(); setLoginError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setLoginError(error.message); return }
-    setPassword(''); setLoginOpen(false); setActiveApp(null); setSupportableView('Work')
+    setPassword(''); setLoginOpen(false); setActiveApp(null); setActiveListId(null); setSupportableView('Work')
   }
 
   async function handleLogout() {
     const { error } = await supabase.auth.signOut()
     if (error) setLoginError(error.message)
-    setActiveApp(null); setSupportableView('Work')
+    setActiveApp(null); setActiveListId(null); setSupportableView('Work')
   }
 
   function selectSupportable(view: SupportableView) {
     setActiveApp('Supportable')
+    setActiveListId(null)
     setSupportableView(view)
   }
 
+  function selectList(id: string) {
+    setActiveApp('Lists')
+    setActiveListId(id)
+  }
+
+  const supportableTreeNodes = createSupportableTreeProvider(selectSupportable).getTree()
+  const listsTreeNodes = useListsTree(selectList)
   const treeProviders = [
-    createSupportableTreeProvider(selectSupportable),
-    createListsTreeProvider(() => setActiveApp('Lists')),
+    { getTree: () => supportableTreeNodes },
+    createListsTreeProvider(listsTreeNodes),
   ]
   const treeNodes: TreeNode[] = treeProviders.flatMap((provider) => provider.getTree())
 
   const activeTreeId = activeApp === 'Lists'
-    ? 'lists'
+    ? activeListId ? `list-${activeListId}` : 'lists'
     : activeApp === 'Supportable'
       ? `supportable-${supportableView.toLowerCase()}`
       : null
@@ -72,7 +81,7 @@ export default function App() {
       <AppTree nodes={treeNodes} activeId={activeTreeId} />
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
-        {activeApp === 'Lists' && <section className="app-placeholder"><div className="app-kicker">eB-Lists</div><h1>Lists</h1><p className="app-lead">Lists app will load here.</p></section>}
+        {activeApp === 'Lists' && <section className="app-placeholder"><div className="app-kicker">eB-Lists</div><h1>Lists</h1><p className="app-lead">{activeListId ? `List selected: ${activeListId}` : 'Select a list from the tree.'}</p></section>}
       </main>
     </div>}
     {!authenticated && <main className="app-container"><section className="welcome-view"><div className="app-kicker">eBliss Console</div><h1>Welcome.</h1><p className="app-lead">Use Login in the upper-right.</p></section></main>}
