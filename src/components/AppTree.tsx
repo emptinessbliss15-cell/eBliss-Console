@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import './AppTree.css'
 
 export interface TreeNode {
   id: string
