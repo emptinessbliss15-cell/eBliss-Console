@@ -49,9 +49,13 @@ export default function App() {
   }
 
   function selectApp(app: AppDefinition) {
-    const next = app.id === 'lists' ? 'Lists' : 'Supportable'
+    const next = app.id.toLowerCase() === 'lists' ? 'Lists' : 'Supportable'
     setActiveApp(next)
     if (next !== 'Lists') setActiveListId(null)
+  }
+
+  function selectAppById(id: string) {
+    selectApp({ id, name: id, icon: null })
   }
 
   function selectList(id: string) {
@@ -99,7 +103,14 @@ export default function App() {
       </div>
     </header>
     {authenticated && <div className="console-workspace">
-      <AppPanel apps={apps} selectedAppId={activeApp?.toLowerCase()} onSelect={selectApp} />
+      <div onClickCapture={(event) => {
+        const target = event.target as HTMLElement
+        const button = target.closest('button[aria-label]') as HTMLButtonElement | null
+        const label = button?.getAttribute('aria-label')
+        if (label === 'Lists' || label === 'Supportable') selectAppById(label.toLowerCase())
+      }}>
+        <AppPanel apps={apps} selectedAppId={activeApp?.toLowerCase()} onSelect={selectApp} />
+      </div>
       {activeApp && <aside className="app-tree" aria-label={`${activeApp} navigation`}><Tree nodes={treeNodes} selectedId={activeTreeId} onSelect={handleTreeSelect} /></aside>}
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
