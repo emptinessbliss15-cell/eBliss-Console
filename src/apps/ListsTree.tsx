@@ -18,15 +18,27 @@ function buildNodes(records: ListRecord[]): TreeNode[] {
     byParent.set(record.parent_list_id, group)
   }
 
-  const makeNodes = (parentId: string | null): TreeNode[] =>
+  const makeNodes = (parentId: string | null, ancestors = new Set<string>()): TreeNode[] =>
     (byParent.get(parentId) ?? [])
       .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name))
-      .map((record) => ({
-        id: `list-${record.id}`,
-        label: record.name,
-        icon: <ListTree size={18} />,
-        children: makeNodes(record.id),
-      }))
+      .map((record) => {
+        if (ancestors.has(record.id)) {
+          return {
+            id: `list-${record.id}`,
+            label: `${record.name} (cycle)`,
+            icon: <ListTree size={18} />,
+          }
+        }
+
+        const nextAncestors = new Set(ancestors)
+        nextAncestors.add(record.id)
+        return {
+          id: `list-${record.id}`,
+          label: record.name,
+          icon: <ListTree size={18} />,
+          children: makeNodes(record.id, nextAncestors),
+        }
+      })
 
   return [{
     id: 'lists',
@@ -42,18 +54,37 @@ export function useListsTree(): TreeNode[] {
   useEffect(() => {
     let mounted = true
 
-    async function load() {
+    async function load(userId: string | undefined) {
+      if (!userId) {
+        if (mounted) setRecords([])
+        return
+      }
+
       const { data, error } = await supabase
         .from('lists')
         .select('id,name,parent_list_id,position')
         .order('position', { ascending: true })
         .order('name', { ascending: true })
 
-      if (!error && mounted) setRecords((data ?? []) as ListRecord[])
+      if (error) {
+        console.error('Unable to load Lists tree:', error)
+        return
+      }
+      if (mounted) setRecords((data ?? []) as ListRecord[])
     }
 
-    void load()
-    return () => { mounted = false }
+    supabase.auth.getSession().then(({ data }) => {
+      void load(data.session?.user.id)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void load(session?.user.id)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   return buildNodes(records)
