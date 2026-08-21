@@ -1,11 +1,14 @@
 import { FormEvent, useState } from 'react'
-import { X, LogIn, LogOut, ChevronDown, LifeBuoy } from 'lucide-react'
+import { X, LogIn, LogOut, ChevronDown, LifeBuoy, List } from 'lucide-react'
 import { PasswordField } from './components/PasswordField'
 import Supportable from './apps/SupportableView'
+import Lists from './apps/ListsView'
 
 type ThemeName = 'default' | 'light' | 'midnight'
 const themes: Record<ThemeName, string> = { default: 'Default', light: 'Light', midnight: 'Midnight' }
 const devPassword = import.meta.env.VITE_DEV_PASSWORD as string | undefined
+
+type AppName = 'Supportable' | 'Lists'
 
 export default function App() {
   const [loginOpen, setLoginOpen] = useState(false)
@@ -13,7 +16,7 @@ export default function App() {
   const [loginError, setLoginError] = useState('')
   const [password, setPassword] = useState('')
   const [theme, setTheme] = useState<ThemeName>('default')
-  const [activeApp, setActiveApp] = useState('Supportable')
+  const [activeApp, setActiveApp] = useState<AppName>('Supportable')
 
   function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -39,12 +42,18 @@ export default function App() {
     </header>
     <aside className="app-menu" aria-label="Apps">
       <div className="menu-title">Apps</div>
-      {authenticated && <button className={`app-link ${activeApp === 'Supportable' ? 'active' : ''}`} title="Supportable" aria-label="Supportable" onClick={() => setActiveApp('Supportable')}><LifeBuoy size={24} /></button>}
+      {authenticated && <>
+        <button className={`app-link ${activeApp === 'Supportable' ? 'active' : ''}`} title="Supportable" aria-label="Supportable" onClick={() => setActiveApp('Supportable')}><LifeBuoy size={24} /></button>
+        <button className={`app-link ${activeApp === 'Lists' ? 'active' : ''}`} title="Lists" aria-label="Lists" onClick={() => setActiveApp('Lists')}><List size={24} /></button>
+      </>}
       <div className="menu-divider" />
       {!authenticated ? <button className="app-link menu-action" title="Login" aria-label="Login" onClick={() => { setLoginError(''); setLoginOpen(true) }}><LogIn size={22} /></button> : <button className="app-link menu-action" title="Logout" aria-label="Logout" onClick={handleLogout}><LogOut size={22} /></button>}
       <div className="menu-note">Hover an icon for its name.</div>
     </aside>
-    <main className="app-container">{!authenticated ? <section className="welcome-view"><div className="app-kicker">eBliss Console</div><h1>Welcome.</h1><p className="app-lead">Use the menu to log in.</p></section> : activeApp === 'Supportable' && <Supportable />}</main>
+    <main className="app-container">
+      {!authenticated ? <section className="welcome-view"><div className="app-kicker">eBliss Console</div><h1>Welcome.</h1><p className="app-lead">Use the menu to log in.</p></section>
+        : activeApp === 'Supportable' ? <Supportable /> : <Lists />}
+    </main>
     {loginOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setLoginOpen(false)}><section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Close login" onClick={() => setLoginOpen(false)}><X size={20} /></button><h2 id="login-title">eBliss Login</h2><p className="modal-description">Development login for the console.</p><form onSubmit={handleLogin}><PasswordField label="Password" value={password} onChange={setPassword} placeholder="Environment password" autoComplete="current-password" required />{loginError && <div className="login-error" role="alert">{loginError}</div>}<button className="primary-button" type="submit">Continue</button></form><p className="modal-note">Uses the configured <code>VITE_DEV_PASSWORD</code> environment variable. No password is stored in the repository.</p></section></div>}
   </div>
 }
