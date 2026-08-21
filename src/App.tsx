@@ -5,7 +5,6 @@ import { Tree, TreeNode } from '@ebliss/tree'
 import { PasswordField } from './components/PasswordField'
 import Supportable from './apps/SupportableView'
 import { createSupportableTree, SupportableView } from './apps/SupportableTree'
-import { useListsTree } from './apps/ListsTree'
 import { supabase } from './lib/supabase'
 
 type ThemeName = 'default' | 'light' | 'midnight'
@@ -22,10 +21,8 @@ export default function App() {
   const [password, setPassword] = useState('')
   const [theme, setTheme] = useState<ThemeName>('default')
   const [activeApp, setActiveApp] = useState<AppName | null>(null)
-  const [activeListId, setActiveListId] = useState<string | null>(null)
   const [supportableView, setSupportableView] = useState<SupportableView>('Work')
   const authenticated = !!userEmail
-  const listsTreeNodes = useListsTree()
   const supportableTreeNodes = useMemo(() => createSupportableTree(), [])
 
   useEffect(() => {
@@ -39,34 +36,18 @@ export default function App() {
     event.preventDefault(); setLoginError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setLoginError(error.message); return }
-    setPassword(''); setLoginOpen(false); setActiveApp(null); setActiveListId(null); setSupportableView('Work')
+    setPassword(''); setLoginOpen(false); setActiveApp(null); setSupportableView('Work')
   }
 
   async function handleLogout() {
     const { error } = await supabase.auth.signOut()
     if (error) setLoginError(error.message)
-    setActiveApp(null); setActiveListId(null); setSupportableView('Work')
+    setActiveApp(null); setSupportableView('Work')
   }
 
   function selectApp(app: AppDefinition) {
     const next = app.id.toLowerCase() === 'lists' ? 'Lists' : 'Supportable'
     setActiveApp(next)
-    if (next !== 'Lists') setActiveListId(null)
-  }
-
-  function selectAppById(id: string) {
-    selectApp({ id, name: id, icon: null })
-  }
-
-  function selectList(id: string) {
-    setActiveApp('Lists')
-    setActiveListId(id)
-  }
-
-  function selectSupportable(view: SupportableView) {
-    setActiveApp('Supportable')
-    setActiveListId(null)
-    setSupportableView(view)
   }
 
   const apps: AppDefinition[] = useMemo(() => [
@@ -74,24 +55,16 @@ export default function App() {
     { id: 'supportable', name: 'Supportable', icon: <Headphones size={21} /> },
   ], [])
 
-  const treeNodes: TreeNode[] = activeApp === 'Lists'
-    ? listsTreeNodes
-    : activeApp === 'Supportable'
-      ? supportableTreeNodes
-      : []
+  const treeNodes: TreeNode[] = activeApp === 'Supportable' ? supportableTreeNodes : []
 
-  const activeTreeId = activeApp === 'Lists'
-    ? activeListId ? `list-${activeListId}` : 'lists'
-    : activeApp === 'Supportable'
-      ? `supportable-${supportableView.toLowerCase()}`
-      : undefined
+  const activeTreeId = activeApp === 'Supportable'
+    ? `supportable-${supportableView.toLowerCase()}`
+    : undefined
 
   function handleTreeSelect(node: TreeNode) {
-    if (node.id === 'lists') { setActiveApp('Lists'); setActiveListId(null); return }
-    if (node.id.startsWith('list-')) { selectList(node.id.slice(5)); return }
-    if (node.id === 'supportable') { selectSupportable('Work'); return }
-    if (node.id === 'supportable-work') { selectSupportable('Work'); return }
-    if (node.id === 'supportable-manage') { selectSupportable('Manage') }
+    if (node.id === 'supportable') { setSupportableView('Work'); return }
+    if (node.id === 'supportable-work') { setSupportableView('Work'); return }
+    if (node.id === 'supportable-manage') { setSupportableView('Manage') }
   }
 
   return <div className={`console theme-${theme}`}>
@@ -103,15 +76,8 @@ export default function App() {
       </div>
     </header>
     {authenticated && <div className="console-workspace">
-      <div onClickCapture={(event) => {
-        const target = event.target as HTMLElement
-        const button = target.closest('button[aria-label]') as HTMLButtonElement | null
-        const label = button?.getAttribute('aria-label')
-        if (label === 'Lists' || label === 'Supportable') selectAppById(label.toLowerCase())
-      }}>
-        <AppPanel apps={apps} selectedAppId={activeApp?.toLowerCase()} onSelect={selectApp} />
-      </div>
-      {activeApp && <aside className="app-tree" aria-label={`${activeApp} navigation`}><Tree nodes={treeNodes} selectedId={activeTreeId} onSelect={handleTreeSelect} /></aside>}
+      <AppPanel apps={apps} selectedAppId={activeApp?.toLowerCase()} onSelect={selectApp} />
+      {activeApp === 'Supportable' && <aside className="app-tree" aria-label="Supportable navigation"><Tree nodes={treeNodes} selectedId={activeTreeId} onSelect={handleTreeSelect} /></aside>}
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
         {activeApp === 'Lists' && <iframe src={LISTS_APP_URL} title="eB Lists" style={{ display: 'block', width: '100%', height: 'calc(100vh - 64px)', minHeight: '700px', border: 0, background: '#fff' }} />}
