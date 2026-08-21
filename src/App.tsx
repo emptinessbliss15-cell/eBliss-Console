@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Headphones, List, LogIn, LogOut, X } from 'lucide-react'
 import { AppPanel, AppDefinition } from '@ebliss/app-panel'
 import { Tree, TreeNode } from '@ebliss/tree'
@@ -12,6 +12,7 @@ const themes: Record<ThemeName, string> = { default: 'Default', light: 'Light', 
 const buildVersion = import.meta.env.VITE_BUILD_VERSION || 'dev'
 type AppName = 'Supportable' | 'Lists'
 const LISTS_APP_URL = 'https://dev-eb-lists.emptinessbliss15.workers.dev/'
+const LISTS_ORIGIN = new URL(LISTS_APP_URL).origin
 
 export default function App() {
   const [loginOpen, setLoginOpen] = useState(false)
@@ -22,13 +23,29 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeName>('default')
   const [activeApp, setActiveApp] = useState<AppName | null>(null)
   const [supportableView, setSupportableView] = useState<SupportableView>('Work')
+  const listsFrameRef = useRef<HTMLIFrameElement | null>(null)
   const authenticated = !!userEmail
   const supportableTreeNodes = useMemo(() => createSupportableTree(), [])
 
+  function sendListsSession(session: { access_token: string; refresh_token: string } | null) {
+    listsFrameRef.current?.contentWindow?.postMessage(
+      { type: 'eb-auth-session', source: 'eBliss-Console', session },
+      LISTS_ORIGIN,
+    )
+  }
+
   useEffect(() => {
     let mounted = true
-    supabase.auth.getSession().then(({ data }) => { if (mounted) setUserEmail(data.session?.user.email ?? '') })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { if (mounted) setUserEmail(session?.user.email ?? '') })
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return
+      setUserEmail(data.session?.user.email ?? '')
+      if (data.session) sendListsSession(data.session)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return
+      setUserEmail(session?.user.email ?? '')
+      sendListsSession(session ? { access_token: session.access_token, refresh_token: session.refresh_token } : null)
+    })
     return () => { mounted = false; subscription.unsubscribe() }
   }, [])
 
@@ -56,10 +73,7 @@ export default function App() {
   ], [])
 
   const treeNodes: TreeNode[] = activeApp === 'Supportable' ? supportableTreeNodes : []
-
-  const activeTreeId = activeApp === 'Supportable'
-    ? `supportable-${supportableView.toLowerCase()}`
-    : undefined
+  const activeTreeId = activeApp === 'Supportable' ? `supportable-${supportableView.toLowerCase()}` : undefined
 
   function handleTreeSelect(node: TreeNode) {
     if (node.id === 'supportable') { setSupportableView('Work'); return }
@@ -80,7 +94,7 @@ export default function App() {
       {activeApp === 'Supportable' && <aside className="app-tree" aria-label="Supportable navigation"><Tree nodes={treeNodes} selectedId={activeTreeId} onSelect={handleTreeSelect} /></aside>}
       <main className="app-pane">
         {activeApp === 'Supportable' && <Supportable view={supportableView} />}
-        {activeApp === 'Lists' && <iframe src={LISTS_APP_URL} title="eB Lists" style={{ display: 'block', width: '100%', height: 'calc(100vh - 64px)', minHeight: '700px', border: 0, background: '#fff' }} />}
+        {activeApp === 'Lists' && <iframe ref={listsFrameRef} onLoad={() => { supabase.auth.getSession().then(({ data }) => sendListsSession(data.session)) }} src={LISTS_APP_URL} title="eB Lists" style={{ display: 'block', width: '100%', height: 'calc(100vh - 64px)', minHeight: '700px', border: 0, background: '#fff' }} />}
         {!activeApp && <section className="app-placeholder"><div className="app-kicker">eBliss Console</div><h1>Select an app.</h1><p className="app-lead">Choose Lists or Supportable from the App Panel.</p></section>}
       </main>
     </div>}
