@@ -18,8 +18,59 @@ export function RevoHolonGrid() {
     { id: 'supportable-work', holon: 'Work', type: 'View Holon', parent: 'Supportable', state: 'active' },
     { id: 'supportable-manage', holon: 'Manage', type: 'View Holon', parent: 'Supportable', state: 'active' },
   ], [])
-  return <section className="revo-holon-panel" aria-label="Holon grid">
-    <div className="revo-holon-heading"><div><div className="app-kicker">Holon Grid</div><h2>Tree → Grid</h2></div><span>Compact dark</span></div>
-    <div className="revo-holon-grid-wrap"><RevoGrid source={source} columns={columns} theme="darkCompact" hideAttribution resize range stretch="last" readonly style={{ height: '220px', width: '100%' }} /></div>
-  </section>
+
+  return <>
+    <style>{`
+      .app-tree [role="tree"] { gap: 1px; }
+      .app-tree [role="treeitem"] {
+        min-height: 30px;
+        padding: 4px 8px !important;
+        border-radius: 6px;
+        font-size: 13px;
+        line-height: 1.2;
+      }
+      .revo-holon-panel {
+        margin-top: 18px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--surface);
+      }
+      .revo-holon-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .revo-holon-heading h2 { margin: 3px 0 0; font-size: 20px; }
+      .revo-holon-heading > span {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+      }
+      .revo-holon-grid-wrap {
+        height: 220px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: #080d18;
+      }
+      .revo-holon-grid-wrap revo-grid {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    `}</style>
+    <section className="revo-holon-panel" aria-label="Holon grid">
+      <div className="revo-holon-heading">
+        <div><div className="app-kicker">Holon Grid</div><h2>Tree → Grid</h2></div>
+        <span>Compact dark</span>
+      </div>
+      <div className="revo-holon-grid-wrap">
+        <RevoGrid source={source} columns={columns} theme="darkCompact" hideAttribution resize range stretch="last" readonly style={{ height: '220px', width: '100%' }} />
+      </div>
+    </section>
+  </>
 }
