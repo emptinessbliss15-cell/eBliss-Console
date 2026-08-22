@@ -11,6 +11,7 @@
   "dependencies": {
     "@ebliss/app-panel": "github:emptinessbliss15-cell/App-Panel",
     "@ebliss/tree": "github:emptinessbliss15-cell/Tree",
+    "@revolist/revogrid-react": "latest",
     "@supabase/supabase-js": "^2.57.0",
     "@vitejs/plugin-react": "latest",
     "vite": "latest",
